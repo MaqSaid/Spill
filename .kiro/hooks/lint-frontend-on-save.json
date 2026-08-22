@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Lint Frontend on Save",
+      "trigger": "PostFileSave",
+      "description": "Runs ESLint on TypeScript/React files after save",
+      "matcher": "\\.(ts|tsx)$",
+      "action": {
+        "type": "command",
+        "command": "cd frontend && npx eslint --fix src/",
+        "timeout": 30
+      }
+    }
+  ]
+}

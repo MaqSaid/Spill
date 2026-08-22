@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Lint Python on Save",
+      "trigger": "PostFileSave",
+      "description": "Runs Ruff linter and Mypy type checker on Python files after save",
+      "matcher": "\\.py$",
+      "action": {
+        "type": "command",
+        "command": "cd backend && python -m ruff check --fix src/ && python -m mypy src/",
+        "timeout": 30
+      }
+    }
+  ]
+}

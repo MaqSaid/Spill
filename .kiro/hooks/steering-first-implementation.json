@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Steering-First Implementation Guard",
+      "trigger": "UserPromptSubmit",
+      "description": "Before any implementation, forces the AI to check steering files and specs for applicable constraints, preventing wasted tokens on non-compliant code that would need to be rewritten.",
+      "matcher": "feat|implement|add|create|build|write",
+      "action": {
+        "type": "agent",
+        "prompt": "Before implementing: 1) Which steering rules apply to this change? (Check security.md for privacy constraints, architecture.md for layer rules) 2) Does this align with specs/requirements.md? 3) Will this pass the existing hooks (no secrets, no plaintext logging, no localStorage)? Plan compliance BEFORE writing code to avoid rewrites."
+      }
+    }
+  ]
+}

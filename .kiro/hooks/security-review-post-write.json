@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Security Advisory After File Write",
+      "trigger": "PostToolUse",
+      "description": "Advisory prompt to verify zero-knowledge privacy compliance after file modifications",
+      "matcher": "fs_write|str_replace|fs_append",
+      "action": {
+        "type": "agent",
+        "prompt": "After writing code, verify: 1) No plaintext feedback content is logged or stored server-side. 2) No localStorage usage — only sessionStorage. 3) No identity-revealing metadata persisted. 4) Encryption uses AES-256-GCM + RSA-OAEP standards only."
+      }
+    }
+  ]
+}

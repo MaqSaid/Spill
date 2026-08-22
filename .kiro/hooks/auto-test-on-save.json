@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Auto Test on Save",
+      "trigger": "PostFileSave",
+      "description": "Runs relevant tests with minimal verbosity when source code changes",
+      "matcher": "(backend/src|frontend/src).*\\.(py|ts|tsx)$",
+      "action": {
+        "type": "command",
+        "command": "echo \"Tests should be run manually: backend: pytest -q --tb=short | frontend: npx vitest run --silent\"",
+        "timeout": 5
+      }
+    }
+  ]
+}

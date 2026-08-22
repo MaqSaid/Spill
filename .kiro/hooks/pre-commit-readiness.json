@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Pre-Commit Submission Readiness",
+      "trigger": "PostToolUse",
+      "description": "Runs the full submission readiness check before any git commit to ensure competition requirements remain satisfied. Blocks commit if critical criteria are missing.",
+      "matcher": "execute_pwsh",
+      "action": {
+        "type": "command",
+        "command": "pwsh -File scripts/check-submission-readiness.ps1"
+      }
+    }
+  ]
+}

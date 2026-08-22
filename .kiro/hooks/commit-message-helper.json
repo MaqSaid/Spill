@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Commit Message Helper",
+      "trigger": "PreToolUse",
+      "description": "Generates conventional commit messages from staged changes",
+      "matcher": "execute_pwsh",
+      "action": {
+        "type": "agent",
+        "prompt": "If this command involves git commit, ensure the commit message follows conventional commit format: type(scope): description. Types: feat, fix, docs, style, refactor, test, chore, security. Keep first line under 50 chars. Use imperative mood."
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Security Scan Python on Save",
+      "trigger": "PostFileSave",
+      "description": "Runs Bandit SAST security scanner on Python files after save",
+      "matcher": "\\.py$",
+      "action": {
+        "type": "command",
+        "command": "cd backend && python -m bandit -r src/ -c pyproject.toml --quiet",
+        "timeout": 30
+      }
+    }
+  ]
+}

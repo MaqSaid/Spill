@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Environment File Validation",
+      "trigger": "PostFileSave",
+      "description": "Validates .env files for security issues - ensures no secrets leak into version control",
+      "matcher": "\\.env",
+      "action": {
+        "type": "agent",
+        "prompt": "SECURITY CHECK: An .env file was saved. Verify: 1) The file is listed in .gitignore. 2) No production credentials are present (only local dev values). 3) Suggest using .env.example with placeholders for team sharing. 4) Flag any AWS keys, database passwords with 'prod' in name, or private keys."
+      }
+    }
+  ]
+}

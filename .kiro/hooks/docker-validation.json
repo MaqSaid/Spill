@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Validate Docker on Change",
+      "trigger": "PostFileSave",
+      "description": "Validates Dockerfile and docker-compose changes for best practices",
+      "matcher": "(Dockerfile|docker-compose)",
+      "action": {
+        "type": "agent",
+        "prompt": "A Docker file was modified. Verify: 1) Multi-stage build is used. 2) Non-root user for runtime. 3) No secrets in image layers. 4) Specific base image tags (not latest). 5) HEALTHCHECK defined. 6) .dockerignore exists and excludes .git, node_modules, __pycache__."
+      }
+    }
+  ]
+}

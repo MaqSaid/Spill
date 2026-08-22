@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Security Scan on Dependency Change",
+      "trigger": "PostFileSave",
+      "description": "Audits dependencies for vulnerabilities when package files change",
+      "matcher": "(package\\.json|pyproject\\.toml|requirements.*\\.txt)$",
+      "action": {
+        "type": "agent",
+        "prompt": "A dependency file was modified. Remind the developer to run: 1) npm audit (for frontend/package.json changes) or 2) pip-audit (for backend/pyproject.toml changes). Check that new dependencies are well-maintained, have no known critical CVEs, and are justified with clear technical value."
+      }
+    }
+  ]
+}

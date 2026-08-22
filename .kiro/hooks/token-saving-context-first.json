@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Token-Saving: Context-First Strategy",
+      "trigger": "SessionStart",
+      "description": "Injects context-first strategy on every prompt to save tokens: consult steering files before re-reading code, use shell commands for verification instead of AI analysis, reference specs for requirements instead of re-explaining.",
+      "action": {
+        "type": "agent",
+        "prompt": "TOKEN EFFICIENCY RULES: 1) Check .kiro/steering/spill-domain-knowledge.md before reading source files — it has the full architecture map. 2) Use shell commands (ruff, tsc, pytest) for verification instead of manually reading output files. 3) Reference .kiro/specs/ for requirements instead of asking the user to re-explain. 4) For linting/testing, run the command and only read code if it fails. 5) Batch related file edits into single responses. Shell commands = free, AI analysis = credits."
+      }
+    }
+  ]
+}

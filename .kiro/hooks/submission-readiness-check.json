@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Submission Readiness Check",
+      "trigger": "UserPromptSubmit",
+      "description": "Validates all evaluation criteria (Application Quality 40pts, Kiro Usage 20pts, Documentation 20pts, Innovation 15pts, Presentation 5pts) are satisfied. Run via UserPromptSubmit when user mentions 'ready' or 'submission'.",
+      "matcher": "ready|submission|check.*criteria|readiness",
+      "action": {
+        "type": "command",
+        "command": "pwsh -File scripts/check-submission-readiness.ps1"
+      }
+    }
+  ]
+}
