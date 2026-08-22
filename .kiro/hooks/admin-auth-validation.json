@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "hooks": [{
+    "name": "Validate Admin Auth Protection",
+    "trigger": "PostFileSave",
+    "matcher": "admin\\.py",
+    "action": { "type": "agent", "prompt": "Verify that all admin endpoints in this file require authentication. Every route handler in admin.py MUST have a dependency on admin session validation (e.g., Depends(verify_admin_session)). If any endpoint is unprotected, flag it immediately." }
+  }]
+}

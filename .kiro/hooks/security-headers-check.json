@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "hooks": [{
+    "name": "Security Headers Check",
+    "trigger": "PostFileSave",
+    "matcher": "app\\.py|middleware\\.py",
+    "action": { "type": "agent", "prompt": "Verify that the security headers middleware is registered in the app factory. Required headers: Strict-Transport-Security, X-Content-Type-Options (nosniff), X-Frame-Options (DENY), Referrer-Policy (no-referrer), Content-Security-Policy, Permissions-Policy. Check that the middleware is added to the app in create_app()." }
+  }]
+}

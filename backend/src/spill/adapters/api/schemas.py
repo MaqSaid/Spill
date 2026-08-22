@@ -14,6 +14,8 @@ from spill.core.entities.submission import Category, ImpactLevel, SubmissionStat
 class SubmitFeedbackRequest(BaseModel):
     """Request schema for submitting anonymous feedback."""
 
+    model_config = {"extra": "forbid"}
+
     category: Category
     impact: ImpactLevel
     encrypted_payload: str = Field(
@@ -47,6 +49,8 @@ class SubmitFeedbackResponse(BaseModel):
 
 class StatusCheckRequest(BaseModel):
     """Request schema for checking submission status."""
+
+    model_config = {"extra": "forbid"}
 
     receipt_hash: str = Field(
         ...,
@@ -102,6 +106,8 @@ class AdminListResponse(BaseModel):
 
 class UpdateStatusRequest(BaseModel):
     """Request to update a submission's status."""
+
+    model_config = {"extra": "forbid"}
 
     status: SubmissionStatus
     note: str = ""

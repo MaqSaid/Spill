@@ -12,10 +12,12 @@ from spill.adapters.db.repository import PostgresSubmissionRepository
 from spill.adapters.db.session import create_engine, create_session_factory
 from spill.adapters.id_gen import UlidGenerator
 from spill.config.settings import get_settings
+from spill.core.services.admin_auth import AdminAuthService
 
 # Module-level singletons initialized lazily
 _engine = None
 _session_factory = None
+_admin_auth_service: AdminAuthService | None = None
 
 
 def _get_session_factory():
@@ -73,3 +75,19 @@ def get_manage_use_case(
     from spill.core.use_cases.manage_submissions import ManageSubmissionsUseCase
 
     return ManageSubmissionsUseCase(repository=repository)
+
+
+def get_admin_auth_service() -> AdminAuthService:
+    """Provide AdminAuthService singleton — configured from settings."""
+    global _admin_auth_service
+    if _admin_auth_service is None:
+        settings = get_settings()
+        _admin_auth_service = AdminAuthService(
+            token_hash=settings.admin_token_hash,
+            totp_secret=settings.admin_totp_secret,
+            session_ttl=settings.admin_session_ttl,
+            idle_ttl=settings.admin_idle_ttl,
+            max_attempts=settings.admin_max_attempts,
+            lockout_seconds=settings.admin_lockout_seconds,
+        )
+    return _admin_auth_service

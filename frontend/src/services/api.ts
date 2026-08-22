@@ -7,6 +7,25 @@
 
 const API_BASE = "/api/v1";
 
+/**
+ * Fetch the organization's RSA public key for encryption.
+ * Returns null if no key is configured.
+ */
+export async function fetchPublicKey(): Promise<string | null> {
+  const response = await fetch(`${API_BASE}/public-key`);
+
+  if (response.status === 404) {
+    return null; // No key configured
+  }
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch encryption key. Please try again later.");
+  }
+
+  const data = (await response.json()) as { public_key: string };
+  return data.public_key;
+}
+
 export interface SubmitRequest {
   category: string;
   impact: string;
@@ -96,15 +115,63 @@ export async function checkStatus(
 }
 
 /**
- * List all submissions (admin).
+ * Admin login with token + TOTP code.
+ */
+export async function adminLogin(
+  token: string,
+  totpCode: string
+): Promise<{ session_token: string; expires_in: number }> {
+  const response = await fetch(`${API_BASE}/admin/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, totp_code: totpCode }),
+  });
+
+  if (response.status === 423) {
+    throw new Error("Account is temporarily locked due to too many failed attempts. Try again later.");
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      (error as { detail?: string }).detail || "Authentication failed."
+    );
+  }
+
+  return response.json() as Promise<{ session_token: string; expires_in: number }>;
+}
+
+/**
+ * Admin logout — invalidate session.
+ */
+export async function adminLogout(sessionToken: string): Promise<void> {
+  await fetch(`${API_BASE}/admin/auth/logout`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${sessionToken}` },
+  });
+}
+
+/**
+ * List all submissions (admin) — requires auth.
  */
 export async function adminListSubmissions(
   limit = 50,
-  offset = 0
+  offset = 0,
+  sessionToken?: string
 ): Promise<AdminListResponse> {
+  const headers: Record<string, string> = {};
+  if (sessionToken) {
+    headers["Authorization"] = `Bearer ${sessionToken}`;
+  }
+
   const response = await fetch(
-    `${API_BASE}/admin/submissions?limit=${limit}&offset=${offset}`
+    `${API_BASE}/admin/submissions?limit=${limit}&offset=${offset}`,
+    { headers }
   );
+
+  if (response.status === 401) {
+    throw new Error("Session expired. Please login again.");
+  }
 
   if (!response.ok) {
     throw new Error(`Admin list failed: ${response.status}`);
@@ -114,18 +181,24 @@ export async function adminListSubmissions(
 }
 
 /**
- * Update submission status (admin).
+ * Update submission status (admin) — requires auth.
  */
 export async function adminUpdateStatus(
   submissionId: string,
   status: string,
-  note = ""
+  note = "",
+  sessionToken?: string
 ): Promise<AdminSubmission> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (sessionToken) {
+    headers["Authorization"] = `Bearer ${sessionToken}`;
+  }
+
   const response = await fetch(
     `${API_BASE}/admin/submissions/${submissionId}/status`,
     {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ status, note }),
     }
   );

@@ -105,6 +105,10 @@ class TestNoPlaintextLogging:
         for filepath in self._get_python_files():
             source = filepath.read_text(encoding="utf-8")
             for i, line in enumerate(source.splitlines(), 1):
+                stripped = line.lstrip()
+                # Skip comments and docstrings
+                if stripped.startswith("#") or stripped.startswith("\"\"\"") or stripped.startswith("- "):
+                    continue
                 if "log" in line.lower() and any(
                     field in line for field in self.SENSITIVE_FIELDS
                 ):

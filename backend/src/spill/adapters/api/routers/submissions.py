@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
-from spill.adapters.api.dependencies import get_status_use_case, get_submit_use_case
+from spill.adapters.api.dependencies import get_repository, get_status_use_case, get_submit_use_case
 from spill.adapters.api.schemas import (
     StatusCheckRequest,
     StatusCheckResponse,
@@ -77,3 +77,50 @@ async def check_status(
             for r in results
         ]
     )
+
+
+@router.delete(
+    "/{submission_id}",
+    status_code=200,
+    summary="Withdraw a submission (within 24 hours)",
+    description="Delete a submission within 24 hours of creation. Requires receipt_hash proof.",
+)
+async def withdraw_submission(
+    submission_id: str,
+    body: StatusCheckRequest,
+    use_case: SubmitFeedbackUseCase = Depends(get_submit_use_case),
+    repository=Depends(get_repository),
+) -> dict[str, str]:
+    """Withdraw (delete) a submission within 24-hour window."""
+    from datetime import UTC, datetime
+
+    # Find the submission
+    submission = await repository.find_by_id(submission_id)
+    if submission is None:
+        raise HTTPException(status_code=404, detail="Submission not found.")
+
+    # Verify ownership via receipt_hash
+    if submission.receipt_hash != body.receipt_hash:
+        raise HTTPException(status_code=403, detail="Invalid receipt hash.")
+
+    # Check 24-hour window
+    today = datetime.now(UTC).date()
+    if submission.submitted_date != today:
+        raise HTTPException(
+            status_code=410,
+            detail="Withdrawal period expired. Submissions can only be withdrawn within 24 hours.",
+        )
+
+    # Only allow withdrawal of SUBMITTED status
+    if submission.status.value != "submitted":
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot withdraw a submission that is already under review or resolved.",
+        )
+
+    # Delete
+    deleted = await repository.delete_by_id(submission_id)
+    if not deleted:
+        raise HTTPException(status_code=500, detail="Failed to withdraw submission.")
+
+    return {"detail": "Submission withdrawn successfully."}

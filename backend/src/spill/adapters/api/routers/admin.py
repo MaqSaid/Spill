@@ -6,6 +6,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from spill.adapters.api.dependencies import get_manage_use_case
+from spill.adapters.api.routers.auth import verify_admin_session
 from spill.adapters.api.schemas import (
     AdminListResponse,
     AdminSubmissionItem,
@@ -13,7 +14,7 @@ from spill.adapters.api.schemas import (
 )
 from spill.core.use_cases.manage_submissions import ManageSubmissionsUseCase
 
-router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
+router = APIRouter(prefix="/api/v1/admin", tags=["admin"], dependencies=[Depends(verify_admin_session)])
 
 
 @router.get(

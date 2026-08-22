@@ -7,34 +7,32 @@
 
 import { Component, type ReactNode } from "react";
 
-interface ErrorBoundaryProps {
+interface Props {
   children: ReactNode;
+  fallback?: ReactNode;
 }
 
-interface ErrorBoundaryState {
+interface State {
   hasError: boolean;
   error: Error | null;
 }
 
-export default class ErrorBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
-  constructor(props: ErrorBoundaryProps) {
+export default class ErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  handleReset = () => {
-    this.setState({ hasError: false, error: null });
-  };
-
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
       return (
         <div
           className="min-h-screen flex items-center justify-center bg-gray-50 px-4"
@@ -57,7 +55,7 @@ export default class ErrorBoundary extends Component<
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
-                onClick={this.handleReset}
+                onClick={() => this.setState({ hasError: false, error: null })}
                 className="px-5 py-2.5 bg-spill-600 text-white font-medium rounded-lg hover:bg-spill-700 transition-colors focus:outline-none focus:ring-2 focus:ring-spill-500 focus:ring-offset-2"
               >
                 Try Again

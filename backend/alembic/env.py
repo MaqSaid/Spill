@@ -1,6 +1,7 @@
 """Alembic migration environment configuration."""
 
 import asyncio
+import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -39,8 +40,14 @@ def do_run_migrations(connection) -> None:
 
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode with async engine."""
+    # Use SPILL_DATABASE_URL env var if available (Docker), otherwise fall back to alembic.ini
+    configuration = config.get_section(config.config_ini_section, {})
+    db_url = os.environ.get("SPILL_DATABASE_URL")
+    if db_url:
+        configuration["sqlalchemy.url"] = db_url
+
     connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

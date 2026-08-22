@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "hooks": [{
+    "name": "Logging Safety Check",
+    "trigger": "PostFileSave",
+    "matcher": "\\.py$",
+    "action": { "type": "agent", "prompt": "Verify logging safety: 1) No encrypted_payload, encryption_iv, or encrypted_symmetric_key content is logged. 2) No receipt_hash values are logged. 3) No admin tokens, TOTP codes, or session tokens are logged. 4) No request bodies from submission endpoints are logged. 5) Error handlers do not expose stack traces in non-debug mode." }
+  }]
+}

@@ -1,89 +1,115 @@
-import { Routes, Route, NavLink } from "react-router-dom";
+import { useState, useCallback, lazy, Suspense } from "react";
+import ErrorBoundary from "./components/ErrorBoundary";
 import SubmitPage from "./pages/SubmitPage";
 import StatusPage from "./pages/StatusPage";
-import AdminPage from "./pages/AdminPage";
-import ErrorBoundary from "./components/ErrorBoundary";
+import PrivacyPage from "./pages/PrivacyPage";
+import AdminLoginPage from "./pages/AdminLoginPage";
+
+// Lazy-load AdminPage (code splitting — employees never need this bundle)
+const AdminPage = lazy(() => import("./pages/AdminPage"));
+
+type Tab = "submit" | "status" | "admin" | "privacy";
 
 function App() {
+  const [activeTab, setActiveTab] = useState<Tab>("submit");
+  const [adminSession, setAdminSession] = useState<string | null>(
+    () => sessionStorage.getItem("spill_admin_session")
+  );
+
+  const handleAdminLogin = useCallback((sessionToken: string) => {
+    setAdminSession(sessionToken);
+  }, []);
+
+  const handleAdminLogout = useCallback(() => {
+    sessionStorage.removeItem("spill_admin_session");
+    setAdminSession(null);
+  }, []);
+
   return (
     <ErrorBoundary>
-    <div className="min-h-screen flex flex-col">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-spill-600 focus:text-white focus:rounded-lg focus:outline-none"
-      >
-        Skip to main content
-      </a>
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-spill-700 tracking-tight">
-            Spill
-          </h1>
-          <nav className="flex gap-1" aria-label="Main navigation">
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) =>
-                `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-spill-100 text-spill-800"
-                    : "text-gray-600 hover:text-spill-700 hover:bg-gray-100"
-                }`
-              }
-            >
-              Submit
-            </NavLink>
-            <NavLink
-              to="/status"
-              className={({ isActive }) =>
-                `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-spill-100 text-spill-800"
-                    : "text-gray-600 hover:text-spill-700 hover:bg-gray-100"
-                }`
-              }
-            >
-              My Status
-            </NavLink>
-            <NavLink
-              to="/admin"
-              className={({ isActive }) =>
-                `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-spill-100 text-spill-800"
-                    : "text-gray-600 hover:text-spill-700 hover:bg-gray-100"
-                }`
-              }
-            >
-              Admin
-            </NavLink>
-          </nav>
-        </div>
-      </header>
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        {/* Skip to content link (accessibility) */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-spill-600 focus:text-white focus:rounded"
+        >
+          Skip to content
+        </a>
 
-      <main id="main-content" className="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
-        <Routes>
-          <Route path="/" element={<SubmitPage />} />
-          <Route path="/status" element={<StatusPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-        </Routes>
-      </main>
-
-      <footer className="border-t border-gray-200 py-4 text-center text-sm text-gray-500">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
-            <p>
-              Spill — Zero-knowledge anonymous feedback.
-            </p>
-            <span className="hidden sm:inline text-gray-300" aria-hidden="true">|</span>
-            <p className="flex items-center gap-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-green-500" aria-hidden="true"></span>
-              End-to-end encrypted. No identity tracking.
-            </p>
+        {/* Navigation */}
+        <nav className="bg-white border-b border-gray-200 sticky top-0 z-40" aria-label="Main navigation">
+          <div className="max-w-4xl mx-auto px-4">
+            <div className="flex items-center justify-between h-14">
+              <span className="text-lg font-bold text-spill-700">Spill</span>
+              <div className="flex gap-1" role="tablist" aria-label="Application sections">
+                {(["submit", "status", "admin"] as Tab[]).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    role="tab"
+                    aria-selected={activeTab === tab}
+                    aria-controls={`panel-${tab}`}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      activeTab === tab
+                        ? "bg-spill-100 text-spill-800"
+                        : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    {tab === "submit" && "Submit"}
+                    {tab === "status" && "My Status"}
+                    {tab === "admin" && "Admin"}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-      </footer>
-    </div>
+        </nav>
+
+        {/* Main Content */}
+        <main id="main-content" className="flex-1 max-w-4xl mx-auto w-full px-4 py-8" role="tabpanel">
+          {activeTab === "submit" && <SubmitPage />}
+          {activeTab === "status" && <StatusPage />}
+          {activeTab === "admin" && (
+            <Suspense
+              fallback={
+                <div className="text-center py-12 text-gray-500">
+                  Loading admin portal...
+                </div>
+              }
+            >
+              {adminSession ? (
+                <div>
+                  <div className="flex justify-end mb-4">
+                    <button
+                      onClick={handleAdminLogout}
+                      className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                  <AdminPage />
+                </div>
+              ) : (
+                <AdminLoginPage onLoginSuccess={handleAdminLogin} />
+              )}
+            </Suspense>
+          )}
+          {activeTab === "privacy" && <PrivacyPage />}
+        </main>
+
+        {/* Footer with Privacy Policy link (APP 1 compliance) */}
+        <footer className="bg-white border-t border-gray-200 py-4">
+          <div className="max-w-4xl mx-auto px-4 flex items-center justify-between text-xs text-gray-400">
+            <span>Zero-knowledge anonymous feedback platform</span>
+            <button
+              onClick={() => setActiveTab("privacy")}
+              className="text-spill-600 hover:text-spill-700 underline"
+            >
+              Privacy Policy
+            </button>
+          </div>
+        </footer>
+      </div>
     </ErrorBoundary>
   );
 }

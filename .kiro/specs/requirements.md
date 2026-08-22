@@ -76,3 +76,111 @@ Spill is a zero-knowledge, 100% anonymous employee feedback and reporting web ap
 - **C-3**: Frontend must function as a static SPA (CDN-deployable).
 - **C-4**: Backend must be stateless and horizontally scalable.
 - **C-5**: All browser data is session-scoped — nothing persists after tab close.
+
+## Production Enhancement Requirements (Phase 1-10)
+
+### FR-5: Auto-loaded Public Key (Employee UX)
+- **FR-5.1**: Organization public key served from backend (`GET /api/v1/public-key`) or bundled at build time.
+- **FR-5.2**: Employees NEVER see or interact with encryption keys — encryption is transparent.
+- **FR-5.3**: If no org key is configured, display: "Encryption not configured. Contact your admin."
+- **FR-5.4**: Privacy trust banner displayed at top of Submit page explaining zero-knowledge guarantees.
+- **FR-5.5**: Warning banner: "Submissions are final — cannot be edited or withdrawn after 24 hours."
+- **FR-5.6**: Confirmation modal on submit: must confirm before encrypting/sending.
+- **FR-5.7**: Idempotency key (X-Idempotency-Key header) prevents duplicate submissions.
+
+### FR-6: Admin Authentication & MFA
+- **FR-6.1**: Admin endpoints require authentication via pre-shared token (SHA-256 hashed).
+- **FR-6.2**: TOTP MFA (6-digit code from authenticator app) required as second factor.
+- **FR-6.3**: Account lockout after 5 failed attempts (15-minute cooldown).
+- **FR-6.4**: Short-lived sessions: 8-hour absolute timeout, 30-minute idle timeout.
+- **FR-6.5**: Admin login page gates access to all admin functionality.
+- **FR-6.6**: All `/api/v1/admin/*` endpoints return 401 without valid session.
+- **FR-6.7**: Admin CANNOT submit feedback (separation of concerns).
+
+### FR-7: Data Lifecycle & Withdrawal
+- **FR-7.1**: Configurable retention period (`SPILL_RETENTION_DAYS`, default 365).
+- **FR-7.2**: Automated daily cleanup of RESOLVED submissions past retention.
+- **FR-7.3**: Employee withdrawal: `DELETE /api/v1/submissions/{id}` within 24 hours using receipt_hash.
+- **FR-7.4**: Withdrawal only allowed for SUBMITTED status (not IN_PROGRESS or RESOLVED).
+- **FR-7.5**: Hard delete — no soft-delete, data unrecoverable after purge.
+
+### FR-8: Operational Features
+- **FR-8.1**: Admin stores org public key via `POST /api/v1/admin/public-key`.
+- **FR-8.2**: Submission analytics endpoint (counts by category/impact/status, no content).
+- **FR-8.3**: Admin audit log (who authenticated, status changes, timestamps).
+- **FR-8.4**: SLA tracking — highlight unresolved submissions older than configurable threshold.
+- **FR-8.5**: Emergency lockdown: `POST /api/v1/admin/emergency/lockdown` disables submissions.
+
+### FR-9: Kill Switch & Maintenance Mode
+- **FR-9.1**: `SPILL_MAINTENANCE=true` returns 503 on all endpoints except /health.
+- **FR-9.2**: `SPILL_SUBMISSIONS_ENABLED=false` disables new submissions only.
+- **FR-9.3**: Admin-triggered lockdown via API (requires auth).
+- **FR-9.4**: Frontend detects 503 and displays maintenance page.
+
+### NFR-6: Security Hardening
+- **NFR-6.1**: Security headers on all responses (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy).
+- **NFR-6.2**: Request body size limit: 64KB maximum.
+- **NFR-6.3**: Content-Type enforcement: reject non-JSON on POST/PATCH endpoints (415).
+- **NFR-6.4**: Response sanitization: no stack traces in production errors.
+- **NFR-6.5**: Remove server version header from responses.
+- **NFR-6.6**: Request timeout: 30 seconds per request.
+- **NFR-6.7**: Pydantic `extra="forbid"` on all request schemas.
+- **NFR-6.8**: Bot protection consideration (Turnstile/hCaptcha) on submit.
+- **NFR-6.9**: Submission rate limit: 10 per hour per session.
+
+### NFR-7: Observability
+- **NFR-7.1**: Structured JSON logging with `structlog` (request_id, method, path, status, latency).
+- **NFR-7.2**: Prometheus metrics endpoint (`/metrics`) with counters, histograms, gauges.
+- **NFR-7.3**: Health checks: `/health/live` (liveness) and `/health/ready` (readiness with DB ping).
+- **NFR-7.4**: Request ID tracing (UUID v4 per request, in logs and X-Request-ID header).
+- **NFR-7.5**: Failed auth alerting logic (log + flag after N failures).
+
+### NFR-8: Australian Compliance
+- **NFR-8.1**: Privacy Policy page accessible from all pages (APP 1).
+- **NFR-8.2**: Privacy Collection Notice before first submission (APP 5).
+- **NFR-8.3**: Data hosted in Australia only (APP 8 — data sovereignty).
+- **NFR-8.4**: Data breach notification procedure documented (NDB scheme, 72-hour SLA).
+- **NFR-8.5**: Essential Eight Maturity Level 2 alignment.
+
+### NFR-9: Frontend Excellence
+- **NFR-9.1**: Code splitting — lazy-load Admin page (React.lazy + Suspense).
+- **NFR-9.2**: Error boundaries for graceful failure handling.
+- **NFR-9.3**: Custom hooks: `useEncryption()`, `useSubmission()`.
+- **NFR-9.4**: Dark mode (system preference detection + toggle).
+- **NFR-9.5**: Skeleton loading states.
+- **NFR-9.6**: Focus management and ARIA live regions for accessibility.
+- **NFR-9.7**: Form validation with zod schema.
+
+### NFR-10: Database Security
+- **NFR-10.1**: PostgreSQL connection via SSL (`sslmode=require`).
+- **NFR-10.2**: Application DB user has minimal privileges (SELECT, INSERT, UPDATE only; no DROP/CREATE).
+- **NFR-10.3**: Separate cleanup user with limited DELETE permission.
+- **NFR-10.4**: Audit log table (append-only, admin actions).
+- **NFR-10.5**: Composite indexes for performance: (status, submitted_date DESC), (submitted_date WHERE status='resolved').
+
+### NFR-11: Testing Maturity
+- **NFR-11.1**: E2E tests (Playwright) running in CI.
+- **NFR-11.2**: Accessibility tests (axe-core) in CI.
+- **NFR-11.3**: Contract tests (schemathesis) validating API schema.
+- **NFR-11.4**: Load test configuration (locust/k6) documented.
+- **NFR-11.5**: Security regression (OWASP ZAP baseline) documented.
+
+### NFR-12: Scalability & Resilience
+- **NFR-12.1**: Circuit breaker on DB operations (retry with backoff).
+- **NFR-12.2**: Graceful shutdown (drain connections, close pool).
+- **NFR-12.3**: Configurable connection pool size via environment.
+- **NFR-12.4**: Stateless backend — horizontally scalable.
+
+## Future Scope (Documented, Not Implemented)
+- Multi-organization support (tenant isolation)
+- SSO/OIDC integration (Okta, Azure AD, Google)
+- WebAuthn/Passkeys for admin
+- Anonymous two-way messaging (admin replies without de-anonymization)
+- Multi-admin threshold decryption (Shamir's Secret Sharing)
+- Submission batching (release in weekly batches to prevent timing correlation)
+- White-labeling / branding configuration (logo, colors, domain)
+- PWA + offline submission queueing
+- Internationalization (i18n) for multilingual workforce
+- Sentiment analysis dashboard (trends without decryption)
+- Custom feedback categories (admin configurable)
+- Admin submission is explicitly OUT OF SCOPE

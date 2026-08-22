@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "hooks": [{
+    "name": "Privacy Compliance Check",
+    "trigger": "PostFileSave",
+    "matcher": "\\.(tsx|ts)$",
+    "action": { "type": "agent", "prompt": "Verify Australian Privacy Act compliance: 1) No localStorage usage anywhere (only sessionStorage). 2) No persistent identifiers stored. 3) No IP addresses or User-Agent strings captured. 4) If this is a page component, verify it does not collect unnecessary personal information beyond what is needed for anonymous feedback." }
+  }]
+}

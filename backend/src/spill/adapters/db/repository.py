@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -84,6 +86,55 @@ class PostgresSubmissionRepository:
         stmt = select(func.count()).select_from(SubmissionModel)
         result = await self._session.execute(stmt)
         return result.scalar_one()
+
+    async def delete_by_id(self, submission_id: str) -> bool:
+        """Delete a submission by ID. Returns True if deleted."""
+        from sqlalchemy import delete as sql_delete
+
+        stmt = sql_delete(SubmissionModel).where(SubmissionModel.id == submission_id)
+        result = await self._session.execute(stmt)
+        await self._session.commit()
+        return result.rowcount > 0
+
+    async def count_by_category(self) -> dict[str, int]:
+        """Count submissions grouped by category."""
+        stmt = (
+            select(SubmissionModel.category, func.count())
+            .group_by(SubmissionModel.category)
+        )
+        result = await self._session.execute(stmt)
+        return {str(row[0].value): row[1] for row in result.all()}
+
+    async def count_by_status(self) -> dict[str, int]:
+        """Count submissions grouped by status."""
+        stmt = (
+            select(SubmissionModel.status, func.count())
+            .group_by(SubmissionModel.status)
+        )
+        result = await self._session.execute(stmt)
+        return {str(row[0].value): row[1] for row in result.all()}
+
+    async def count_by_impact(self) -> dict[str, int]:
+        """Count submissions grouped by impact level."""
+        stmt = (
+            select(SubmissionModel.impact, func.count())
+            .group_by(SubmissionModel.impact)
+        )
+        result = await self._session.execute(stmt)
+        return {str(row[0].value): row[1] for row in result.all()}
+
+    async def delete_resolved_before(self, cutoff_date: date) -> int:
+        """Delete resolved submissions older than cutoff date."""
+        from sqlalchemy import delete as sql_delete
+
+        stmt = (
+            sql_delete(SubmissionModel)
+            .where(SubmissionModel.status == SubmissionStatus.RESOLVED)
+            .where(SubmissionModel.submitted_date < cutoff_date)
+        )
+        result = await self._session.execute(stmt)
+        await self._session.commit()
+        return result.rowcount
 
     @staticmethod
     def _to_entity(model: SubmissionModel) -> Submission:
