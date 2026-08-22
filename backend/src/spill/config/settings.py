@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     # Data Retention
     retention_days: int = 365
 
+    # Database Pool
+    pool_size: int = 10
+    pool_max_overflow: int = 20
+
     # Admin Authentication
     admin_token_hash: str = ""  # SHA-256 hash of admin token
     admin_totp_secret: str = ""  # Base32-encoded TOTP secret

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from spill.adapters.api.dependencies import get_manage_use_case
@@ -12,6 +14,7 @@ from spill.adapters.api.schemas import (
     AdminSubmissionItem,
     UpdateStatusRequest,
 )
+from spill.config.settings import get_settings
 from spill.core.use_cases.manage_submissions import ManageSubmissionsUseCase
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"], dependencies=[Depends(verify_admin_session)])
@@ -30,6 +33,7 @@ async def list_submissions(
 ) -> AdminListResponse:
     """List all submissions for the admin portal."""
     result = await use_case.list_submissions(limit=limit, offset=offset)
+    sla_cutoff = date.today() - timedelta(days=7)
 
     return AdminListResponse(
         items=[
@@ -43,6 +47,7 @@ async def list_submissions(
                 status=item.status,
                 submitted_date=item.submitted_date,
                 status_note=item.status_note,
+                sla_breached=item.submitted_date < sla_cutoff and item.status != SubmissionStatus.RESOLVED,
             )
             for item in result.items
         ],
@@ -109,3 +114,34 @@ async def update_submission_status(
         submitted_date=result.submitted_date,
         status_note=result.status_note,
     )
+
+
+@router.post(
+    "/emergency/lockdown",
+    summary="Emergency lockdown (admin)",
+    description="Disables all submissions immediately. Requires server restart or env change to re-enable.",
+)
+async def emergency_lockdown() -> dict[str, str]:
+    """Activate emergency lockdown — disable submissions at runtime."""
+    settings = get_settings()
+    # Note: This modifies the cached settings instance at runtime
+    # A proper implementation would use a shared state store (Redis)
+    # For now, this persists until the process restarts
+    settings.submissions_enabled = False
+    return {"detail": "Emergency lockdown activated. Submissions disabled."}
+
+
+@router.post(
+    "/public-key",
+    summary="Upload organization public key (admin)",
+    description="Store the org RSA public key for employee encryption. Persists via environment override.",
+)
+async def upload_public_key(body: dict) -> dict[str, str]:
+    """Store the organization's public key (runtime only — persists until restart)."""
+    public_key = body.get("public_key", "")
+    if not public_key or "BEGIN PUBLIC KEY" not in public_key:
+        raise HTTPException(status_code=422, detail="Invalid PEM public key format.")
+
+    settings = get_settings()
+    settings.org_public_key = public_key
+    return {"detail": "Public key updated successfully."}

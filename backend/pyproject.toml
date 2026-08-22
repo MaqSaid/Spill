@@ -19,6 +19,7 @@ dependencies = [
     "pyotp==2.9.0",
     "structlog==24.4.0",
     "prometheus-fastapi-instrumentator==7.0.0",
+    "tenacity==8.5.0",
 ]
 
 [project.optional-dependencies]

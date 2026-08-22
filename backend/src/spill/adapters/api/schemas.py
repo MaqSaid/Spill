@@ -93,6 +93,7 @@ class AdminSubmissionItem(BaseModel):
     status: SubmissionStatus
     submitted_date: date
     status_note: str
+    sla_breached: bool = False  # True if unresolved for > 7 days
 
 
 class AdminListResponse(BaseModel):

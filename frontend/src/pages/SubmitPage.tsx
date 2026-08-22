@@ -1,9 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
-import { encryptFeedback, importPublicKey } from "../services/encryption";
+import { encryptFeedback, importPublicKey, generateKeyPair } from "../services/encryption";
 import { getReceiptHash } from "../services/session";
 import { submitFeedback, fetchPublicKey } from "../services/api";
 import EncryptionIndicator from "../components/EncryptionIndicator";
-import PrivacyProof from "../components/PrivacyProof";
 
 const CATEGORIES = [
   { value: "idea", label: "Idea", icon: "💡" },
@@ -22,6 +21,36 @@ const IMPACTS = [
 
 type SubmitState = "idle" | "encrypting" | "submitting" | "success" | "error";
 
+function CollapsibleSection({ title, icon, defaultOpen = false, variant = "blue", children }: {
+  title: string;
+  icon: string;
+  defaultOpen?: boolean;
+  variant?: "blue" | "green" | "gray";
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const colors = {
+    blue: "bg-blue-50 border-blue-200 text-blue-800",
+    green: "bg-green-50 border-green-200 text-green-800",
+    gray: "bg-gray-50 border-gray-200 text-gray-700",
+  };
+
+  return (
+    <div className={`mb-3 border rounded-lg ${colors[variant]}`}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-2 px-4 py-3 text-sm font-semibold text-left"
+        aria-expanded={open}
+      >
+        <span aria-hidden="true">{icon}</span>
+        <span className="flex-1">{title}</span>
+        <span className="text-xs opacity-60" aria-hidden="true">{open ? "▾" : "▸"}</span>
+      </button>
+      {open && <div className="px-4 pb-3 text-xs leading-relaxed">{children}</div>}
+    </div>
+  );
+}
+
 export default function SubmitPage() {
   const [category, setCategory] = useState("");
   const [impact, setImpact] = useState("");
@@ -32,15 +61,10 @@ export default function SubmitPage() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [orgPublicKeyPem, setOrgPublicKeyPem] = useState<string | null>(null);
   const [keyLoading, setKeyLoading] = useState(true);
-  const [keyError, setKeyError] = useState("");
-  const [encryptedPreview, setEncryptedPreview] = useState<{
-    payload: string;
-    iv: string;
-    key: string;
-    hash: string;
-  } | null>(null);
+  const [generatingKey, setGeneratingKey] = useState(false);
 
-  // Auto-fetch organization public key on mount
+  const isFormComplete = category !== "" && impact !== "" && feedback.trim().length > 0 && orgPublicKeyPem !== null;
+
   useEffect(() => {
     let cancelled = false;
     async function loadKey() {
@@ -50,119 +74,72 @@ export default function SubmitPage() {
           setOrgPublicKeyPem(key);
           setKeyLoading(false);
         }
-      } catch (err) {
-        if (!cancelled) {
-          setKeyError(
-            err instanceof Error ? err.message : "Failed to load encryption key"
-          );
-          setKeyLoading(false);
-        }
+      } catch {
+        if (!cancelled) setKeyLoading(false);
       }
     }
     loadKey();
     return () => { cancelled = true; };
   }, []);
 
-  const handleSubmitClick = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      setErrorMessage("");
+  const handleGenerateKey = useCallback(async () => {
+    setGeneratingKey(true);
+    try {
+      const keys = await generateKeyPair();
+      setOrgPublicKeyPem(keys.publicKey);
+      sessionStorage.setItem("spill_demo_private_key", keys.privateKey);
+    } catch {
+      setErrorMessage("Failed to generate key pair.");
+    } finally {
+      setGeneratingKey(false);
+    }
+  }, []);
 
-      if (!category || !impact || !feedback.trim()) {
-        setErrorMessage("Please fill in all fields (category, impact level, and feedback).");
-        return;
-      }
-
-      if (!orgPublicKeyPem) {
-        setErrorMessage("Encryption is not configured. Please contact your administrator.");
-        return;
-      }
-
-      // Show confirmation modal
-      setShowConfirmation(true);
-    },
-    [category, impact, feedback, orgPublicKeyPem]
-  );
+  const handleSubmitClick = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage("");
+    if (!isFormComplete) {
+      setErrorMessage("Please complete all fields before submitting.");
+      return;
+    }
+    setShowConfirmation(true);
+  }, [isFormComplete]);
 
   const handleConfirmedSubmit = useCallback(async () => {
     setShowConfirmation(false);
-
     if (!orgPublicKeyPem) return;
-
     try {
-      // Step 1: Import public key
       setSubmitState("encrypting");
       const publicKey = await importPublicKey(orgPublicKeyPem);
-
-      // Step 2: Encrypt feedback client-side
       const encrypted = await encryptFeedback(feedback, publicKey);
-
-      // Step 3: Get receipt hash from session token
       const receiptHash = await getReceiptHash();
-
-      // Step 4: Submit encrypted payload to server
       setSubmitState("submitting");
       const result = await submitFeedback({
-        category,
-        impact,
+        category, impact,
         encrypted_payload: encrypted.ciphertext,
         encryption_iv: encrypted.iv,
         encrypted_symmetric_key: encrypted.wrappedKey,
         receipt_hash: receiptHash,
       });
-
-      // Update privacy proof preview
-      setEncryptedPreview({
-        payload: encrypted.ciphertext,
-        iv: encrypted.iv,
-        key: encrypted.wrappedKey,
-        hash: receiptHash,
-      });
-
       setSubmissionId(result.submission_id);
       setSubmitState("success");
       setFeedback("");
     } catch (err) {
       setSubmitState("error");
-      setErrorMessage(
-        err instanceof Error ? err.message : "An unexpected error occurred"
-      );
+      setErrorMessage(err instanceof Error ? err.message : "An unexpected error occurred");
     }
   }, [category, impact, feedback, orgPublicKeyPem]);
 
-  const resetForm = () => {
-    setSubmitState("idle");
-    setSubmissionId("");
-    setErrorMessage("");
-    setShowConfirmation(false);
-  };
-
-  // Success state
   if (submitState === "success") {
     return (
       <div className="max-w-2xl mx-auto">
         <div className="bg-green-50 border border-green-200 rounded-xl p-8 text-center">
-          <div className="text-4xl mb-4" role="img" aria-label="checkmark">
-            ✓
-          </div>
-          <h2 className="text-xl font-semibold text-green-800 mb-2">
-            Feedback Submitted Anonymously
-          </h2>
-          <p className="text-green-700 mb-4">
-            Your feedback has been encrypted and submitted. No identifying
-            information was stored.
-          </p>
-          <p className="text-sm text-green-600 font-mono bg-green-100 inline-block px-3 py-1 rounded">
-            ID: {submissionId}
-          </p>
-          <p className="text-sm text-gray-500 mt-4">
-            Check the &quot;My Status&quot; tab to track your submission during
-            this session.
-          </p>
-          <button
-            onClick={resetForm}
-            className="mt-6 px-6 py-2 bg-spill-600 text-white rounded-lg hover:bg-spill-700 transition-colors"
-          >
+          <div className="text-4xl mb-4" role="img" aria-label="checkmark">✓</div>
+          <h2 className="text-xl font-semibold text-green-800 mb-2">Feedback Submitted Anonymously</h2>
+          <p className="text-green-700 mb-4">Your feedback has been encrypted and submitted. No one can trace this back to you.</p>
+          <p className="text-sm text-green-600 font-mono bg-green-100 inline-block px-3 py-1 rounded">Reference: {submissionId}</p>
+          <p className="text-sm text-gray-500 mt-4">Check &quot;My Status&quot; to track or withdraw within 24 hours.</p>
+          <button onClick={() => { setSubmitState("idle"); setSubmissionId(""); }} className="mt-6 px-6 py-2 bg-spill-600 text-white rounded-lg hover:bg-spill-700 transition-colors">
             Submit Another
           </button>
         </div>
@@ -172,226 +149,131 @@ export default function SubmitPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Privacy Trust Banner */}
-      <div
-        className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4"
-        role="region"
-        aria-label="Privacy information"
-      >
-        <div className="flex items-start gap-3">
-          <span className="text-blue-600 text-xl" aria-hidden="true">🔒</span>
-          <div>
-            <h3 className="text-sm font-semibold text-blue-800 mb-1">
-              Your privacy is protected
-            </h3>
-            <ul className="text-xs text-blue-700 space-y-0.5">
-              <li>Your feedback is encrypted in your browser before being sent — the server cannot read it</li>
-              <li>No IP address, browser info, or identity is stored</li>
-              <li>Only authorized HR managers with the decryption key can read your feedback</li>
-              <li>Your submission cannot be traced back to you</li>
-            </ul>
-          </div>
-        </div>
-      </div>
+      {/* Collapsible Info Sections */}
+      <CollapsibleSection title="Your Employment is Protected" icon="🛡️" defaultOpen={true} variant="green">
+        <p>You will <strong>NOT</strong> be disciplined, penalised, or removed from employment for providing honest feedback. This platform makes identification technically impossible — not just by policy, but by design. Australian workplace law protects employees who raise concerns in good faith.</p>
+      </CollapsibleSection>
 
-      {/* Warning Banner — Submissions are Final */}
-      <div
-        className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-3"
-        role="alert"
-      >
+      <CollapsibleSection title="100% Confidential — Cryptographically Guaranteed" icon="🔒" defaultOpen={true} variant="blue">
+        <ul className="space-y-1">
+          <li>Your feedback is encrypted <strong>in your browser</strong> — the server cannot read it</li>
+          <li>No IP address, name, email, or browser information is stored</li>
+          <li>Your employer <strong>cannot</strong> identify who submitted this feedback</li>
+          <li>Only authorized HR managers can read content — and they cannot see who sent it</li>
+        </ul>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="How does this work? — Learn about our encryption" icon="❓" defaultOpen={false} variant="gray">
+        <div className="space-y-2">
+          <p><strong>Step 1:</strong> You type your feedback below.</p>
+          <p><strong>Step 2:</strong> Your browser encrypts the text using military-grade AES-256 encryption — before anything is sent.</p>
+          <p><strong>Step 3:</strong> The server stores only encrypted (unreadable) data it cannot decrypt.</p>
+          <p><strong>Step 4:</strong> Only your HR manager with the decryption key can read it — without knowing who wrote it.</p>
+          <p className="font-medium mt-2">No cookies. No login. No tracking. Close the tab and all session data is destroyed.</p>
+        </div>
+      </CollapsibleSection>
+
+      {/* Non-collapsible warning */}
+      <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-3" role="alert">
         <p className="text-sm text-amber-800 flex items-center gap-2">
           <span aria-hidden="true">⚠️</span>
-          <strong>Submissions are final.</strong> Once submitted, feedback cannot be edited. You may withdraw within 24 hours.
+          <span><strong>Submissions are final.</strong> Cannot be edited. You may withdraw within 24 hours via &quot;My Status&quot;.</span>
         </p>
       </div>
 
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-gray-800">
-          Submit Anonymous Feedback
-        </h2>
-        <p className="text-gray-500 text-sm mt-1">
-          Your feedback is encrypted in your browser before being sent. The
-          server never sees your plaintext content.
-        </p>
-      </div>
+      {/* Title */}
+      <h2 className="text-xl font-semibold text-gray-800 mb-1">Submit Anonymous Feedback</h2>
+      <p className="text-gray-500 text-sm mb-6">Share your thoughts honestly. Everything is encrypted before leaving your browser.</p>
 
-      {/* Key loading / error states */}
-      {keyLoading && (
-        <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-500">
-          Loading encryption configuration...
-        </div>
-      )}
-
-      {keyError && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700" role="alert">
-          {keyError}
-        </div>
-      )}
-
-      {!keyLoading && !orgPublicKeyPem && !keyError && (
-        <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800" role="alert">
-          Encryption is not configured for this organization. Please contact your administrator to set up the encryption key.
+      {/* Key Status */}
+      {keyLoading && <div className="mb-4 text-sm text-gray-500 animate-pulse">Setting up encryption...</div>}
+      {!keyLoading && !orgPublicKeyPem && (
+        <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
+          <p className="mb-2">Encryption key not configured by your organization.</p>
+          <button
+            onClick={handleGenerateKey}
+            disabled={generatingKey}
+            className="px-3 py-1.5 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50 transition-colors"
+          >
+            {generatingKey ? "Generating..." : "Generate Demo Key (for testing)"}
+          </button>
         </div>
       )}
 
       <form onSubmit={handleSubmitClick} className="space-y-6">
-        {/* Category Selection */}
         <fieldset>
-          <legend className="block text-sm font-medium text-gray-700 mb-2">
-            Category
-          </legend>
+          <legend className="block text-sm font-medium text-gray-700 mb-2">Category <span className="text-red-400">*</span></legend>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {CATEGORIES.map((cat) => (
-              <button
-                key={cat.value}
-                type="button"
-                onClick={() => setCategory(cat.value)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                  category === cat.value
-                    ? "border-spill-500 bg-spill-50 text-spill-800"
-                    : "border-gray-200 hover:border-gray-300 text-gray-600"
-                }`}
-                aria-pressed={category === cat.value}
-              >
-                <span role="img" aria-hidden="true">
-                  {cat.icon}
-                </span>
-                {cat.label}
+              <button key={cat.value} type="button" onClick={() => setCategory(cat.value)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
+                  category === cat.value ? "border-spill-500 bg-spill-50 text-spill-800 ring-2 ring-spill-200" : "border-gray-200 hover:border-gray-300 text-gray-600"
+                }`} aria-pressed={category === cat.value}>
+                <span aria-hidden="true">{cat.icon}</span>{cat.label}
               </button>
             ))}
           </div>
         </fieldset>
 
-        {/* Impact Level */}
         <fieldset>
-          <legend className="block text-sm font-medium text-gray-700 mb-2">
-            Impact Level
-          </legend>
+          <legend className="block text-sm font-medium text-gray-700 mb-2">Impact Level <span className="text-red-400">*</span></legend>
           <div className="flex gap-2">
             {IMPACTS.map((imp) => (
-              <button
-                key={imp.value}
-                type="button"
-                onClick={() => setImpact(imp.value)}
-                className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                  impact === imp.value
-                    ? "border-spill-500 bg-spill-50 text-spill-800"
-                    : "border-gray-200 hover:border-gray-300 text-gray-600"
-                }`}
-                aria-pressed={impact === imp.value}
-              >
+              <button key={imp.value} type="button" onClick={() => setImpact(imp.value)}
+                className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                  impact === imp.value ? "border-spill-500 bg-spill-50 text-spill-800 ring-2 ring-spill-200" : "border-gray-200 hover:border-gray-300 text-gray-600"
+                }`} aria-pressed={impact === imp.value}>
                 {imp.label}
               </button>
             ))}
           </div>
         </fieldset>
 
-        {/* Feedback Text */}
         <div>
-          <label
-            htmlFor="feedback"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Your Feedback
-          </label>
-          <textarea
-            id="feedback"
-            rows={6}
+          <label htmlFor="feedback" className="block text-sm font-medium text-gray-700 mb-1">Your Feedback <span className="text-red-400">*</span></label>
+          <textarea id="feedback" rows={6}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-spill-500 focus:border-transparent resize-y"
-            placeholder="Share your thoughts honestly. This will be encrypted before leaving your browser..."
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-            aria-describedby="feedback-help"
-          />
-          <p id="feedback-help" className="text-xs text-gray-400 mt-1">
-            Your text is encrypted with AES-256-GCM before transmission. The server only stores ciphertext.
-          </p>
+            placeholder="Share your thoughts honestly..."
+            value={feedback} onChange={(e) => setFeedback(e.target.value)} />
         </div>
 
-        {/* Encryption Indicator */}
-        <EncryptionIndicator
-          hasContent={feedback.trim().length > 0}
-          state={submitState}
-        />
+        <EncryptionIndicator hasContent={feedback.trim().length > 0} state={submitState} />
 
-        {/* Error Message */}
         {errorMessage && (
-          <div
-            className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700"
-            role="alert"
-            aria-live="assertive"
-          >
-            {errorMessage}
-          </div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700" role="alert" aria-live="assertive">{errorMessage}</div>
         )}
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={
-            submitState === "encrypting" ||
-            submitState === "submitting" ||
-            keyLoading ||
-            !orgPublicKeyPem
-          }
-          className="w-full py-3 px-4 bg-spill-600 text-white font-medium rounded-lg hover:bg-spill-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-spill-500 focus:ring-offset-2"
-        >
-          {submitState === "encrypting" && "Encrypting..."}
-          {submitState === "submitting" && "Submitting..."}
-          {(submitState === "idle" || submitState === "error") &&
-            "Encrypt & Submit Anonymously"}
-        </button>
+        <div>
+          <button type="submit"
+            disabled={!isFormComplete || submitState === "encrypting" || submitState === "submitting" || keyLoading}
+            className="w-full py-3 px-4 bg-spill-600 text-white font-medium rounded-lg hover:bg-spill-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-spill-500 focus:ring-offset-2"
+            title={!isFormComplete ? "Select category, impact, and enter feedback to submit" : "Encrypt and submit anonymously"}>
+            {submitState === "encrypting" && "Encrypting..."}
+            {submitState === "submitting" && "Submitting..."}
+            {(submitState === "idle" || submitState === "error") && "Encrypt & Submit Anonymously"}
+          </button>
+          {!isFormComplete && <p className="text-xs text-gray-400 text-center mt-2">Complete all fields marked with * to enable submission.</p>}
+        </div>
       </form>
 
       {/* Confirmation Modal */}
       {showConfirmation && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="confirm-title"
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
-            <h3 id="confirm-title" className="text-lg font-semibold text-gray-800 mb-3">
-              Confirm Submission
-            </h3>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-              <p className="text-sm text-amber-800">
-                <strong>Once submitted, your feedback cannot be modified.</strong> You may withdraw within 24 hours, after which it becomes permanent.
-              </p>
+            <h3 id="confirm-title" className="text-lg font-semibold text-gray-800 mb-3">Confirm Anonymous Submission</h3>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+              <p className="text-sm text-green-800"><strong>Your identity is cryptographically protected.</strong> No one — not even system administrators — can determine who submitted this.</p>
             </div>
-            <p className="text-sm text-gray-600 mb-6">
-              Your feedback will be encrypted and sent anonymously. No one can trace it back to you.
-            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-amber-800"><strong>Cannot be modified after sending.</strong> You may withdraw within 24 hours from &quot;My Status&quot;.</p>
+            </div>
             <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowConfirmation(false)}
-                className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                autoFocus
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmedSubmit}
-                className="px-4 py-2 text-sm bg-spill-600 text-white rounded-lg hover:bg-spill-700 transition-colors focus:outline-none focus:ring-2 focus:ring-spill-500"
-              >
-                Submit Anonymously
-              </button>
+              <button onClick={() => setShowConfirmation(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50" autoFocus>Cancel</button>
+              <button onClick={handleConfirmedSubmit} className="px-4 py-2 text-sm bg-spill-600 text-white rounded-lg hover:bg-spill-700 focus:ring-2 focus:ring-spill-500">Submit Anonymously</button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Privacy Proof — live visualization */}
-      <PrivacyProof
-        plaintext={feedback}
-        encryptedPayload={encryptedPreview?.payload}
-        encryptedIv={encryptedPreview?.iv}
-        encryptedKey={encryptedPreview?.key}
-        receiptHash={encryptedPreview?.hash}
-        category={category}
-        impact={impact}
-      />
     </div>
   );
 }

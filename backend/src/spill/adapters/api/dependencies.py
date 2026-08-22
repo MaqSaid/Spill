@@ -25,7 +25,11 @@ def _get_session_factory():
     global _engine, _session_factory
     if _session_factory is None:
         settings = get_settings()
-        _engine = create_engine(settings.database_url)
+        _engine = create_engine(
+            settings.database_url,
+            pool_size=settings.pool_size,
+            max_overflow=settings.pool_max_overflow,
+        )
         _session_factory = create_session_factory(_engine)
     return _session_factory
 

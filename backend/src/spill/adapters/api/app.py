@@ -7,12 +7,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from spill import __version__
 from spill.adapters.api.logging_config import configure_logging
 from spill.adapters.api.maintenance import MaintenanceModeMiddleware
 from spill.adapters.api.middleware import MetadataPurgingMiddleware
 from spill.adapters.api.rate_limiter import RateLimiterMiddleware
+from spill.adapters.api.request_hardening import RequestHardeningMiddleware
 from spill.adapters.api.request_id import RequestIdMiddleware
 from spill.adapters.api.routers import admin, analytics, auth, health, public_key, submissions
 from spill.adapters.api.security_headers import SecurityHeadersMiddleware
@@ -58,6 +60,9 @@ def create_app() -> FastAPI:
     # Note: FastAPI/Starlette middleware executes in REVERSE order of add_middleware calls
     # So the LAST added middleware is the OUTERMOST (first to process request)
 
+    # Request hardening: body size limits + content-type enforcement
+    app.add_middleware(RequestHardeningMiddleware)
+
     # Rate limiting: protect admin endpoints from brute-force enumeration
     app.add_middleware(RateLimiterMiddleware)
 
@@ -89,5 +94,8 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(admin.router)
     app.include_router(analytics.router)
+
+    # ─── Metrics (Prometheus) ─────────────────────────────────────────────────
+    Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
     return app

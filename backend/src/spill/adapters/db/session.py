@@ -12,13 +12,13 @@ from sqlalchemy.ext.asyncio import (
 )
 
 
-def create_engine(database_url: str) -> AsyncEngine:
+def create_engine(database_url: str, pool_size: int = 10, max_overflow: int = 20) -> AsyncEngine:
     """Create an async SQLAlchemy engine for PostgreSQL via asyncpg."""
     return create_async_engine(
         database_url,
         echo=False,
-        pool_size=10,
-        max_overflow=20,
+        pool_size=pool_size,
+        max_overflow=max_overflow,
         pool_pre_ping=True,
     )
 

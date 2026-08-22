@@ -40,9 +40,12 @@ function App() {
         <nav className="bg-white border-b border-gray-200 sticky top-0 z-40" aria-label="Main navigation">
           <div className="max-w-4xl mx-auto px-4">
             <div className="flex items-center justify-between h-14">
-              <span className="text-lg font-bold text-spill-700">Spill</span>
+              <div className="flex flex-col">
+                <span className="text-lg font-bold text-spill-700">Spill</span>
+                <span className="text-[10px] text-gray-400 -mt-1 hidden sm:block">Zero-knowledge anonymous feedback</span>
+              </div>
               <div className="flex gap-1" role="tablist" aria-label="Application sections">
-                {(["submit", "status", "admin"] as Tab[]).map((tab) => (
+                {(["submit", "status", "privacy", "admin"] as Tab[]).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -57,6 +60,7 @@ function App() {
                   >
                     {tab === "submit" && "Submit"}
                     {tab === "status" && "My Status"}
+                    {tab === "privacy" && "Privacy"}
                     {tab === "admin" && "Admin"}
                   </button>
                 ))}
