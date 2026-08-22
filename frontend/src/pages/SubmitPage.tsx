@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { encryptFeedback, importPublicKey } from "../services/encryption";
+import { encryptFeedback, importPublicKey, generateKeyPair } from "../services/encryption";
 import { getReceiptHash } from "../services/session";
 import { submitFeedback } from "../services/api";
 import EncryptionIndicator from "../components/EncryptionIndicator";
@@ -36,6 +36,21 @@ export default function SubmitPage() {
     key: string;
     hash: string;
   } | null>(null);
+  const [generatingKey, setGeneratingKey] = useState(false);
+
+  const handleGenerateKey = useCallback(async () => {
+    setGeneratingKey(true);
+    try {
+      const keys = await generateKeyPair();
+      setPublicKeyPem(keys.publicKey);
+      // Store private key in sessionStorage for admin demo use
+      sessionStorage.setItem("spill_demo_private_key", keys.privateKey);
+    } catch (err) {
+      setErrorMessage("Failed to generate key pair: " + (err instanceof Error ? err.message : "unknown error"));
+    } finally {
+      setGeneratingKey(false);
+    }
+  }, []);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -143,12 +158,22 @@ export default function SubmitPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Public Key Input */}
         <div>
-          <label
-            htmlFor="publicKey"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Organization Public Key (PEM)
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label
+              htmlFor="publicKey"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Organization Public Key (PEM)
+            </label>
+            <button
+              type="button"
+              onClick={handleGenerateKey}
+              disabled={generatingKey}
+              className="text-xs px-2 py-1 bg-spill-100 text-spill-700 rounded hover:bg-spill-200 disabled:opacity-50 transition-colors"
+            >
+              {generatingKey ? "Generating..." : "Generate Demo Key"}
+            </button>
+          </div>
           <textarea
             id="publicKey"
             rows={4}
@@ -159,7 +184,7 @@ export default function SubmitPage() {
           />
           <p className="text-xs text-gray-400 mt-1">
             This key encrypts your feedback so only authorized managers can read
-            it.
+            it. Use &quot;Generate Demo Key&quot; to create a test key pair.
           </p>
         </div>
 

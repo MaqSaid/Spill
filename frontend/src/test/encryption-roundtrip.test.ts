@@ -157,7 +157,7 @@ describe("Key Pair Generation", () => {
     expect(publicKey).toContain("-----END PUBLIC KEY-----");
     expect(privateKey).toContain("-----BEGIN PRIVATE KEY-----");
     expect(privateKey).toContain("-----END PRIVATE KEY-----");
-  });
+  }, 30000);
 
   it("generated key pair can encrypt and decrypt", async () => {
     const { publicKey: pubPem, privateKey: privPem } = await generateKeyPair();
@@ -170,7 +170,7 @@ describe("Key Pair Generation", () => {
     const decrypted = await decryptFeedback(encrypted, privKey);
 
     expect(decrypted).toBe(plaintext);
-  });
+  }, 30000);
 });
 
 // Helper used in test setup

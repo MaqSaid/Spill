@@ -23,40 +23,88 @@ export interface EncryptedPayload {
  * Import an RSA-OAEP public key from PEM format for encryption.
  */
 export async function importPublicKey(pemKey: string): Promise<CryptoKey> {
+  // Validate PEM format
+  if (!pemKey.includes("-----BEGIN PUBLIC KEY-----") || !pemKey.includes("-----END PUBLIC KEY-----")) {
+    throw new Error(
+      "Invalid public key format. Please paste a valid PEM-encoded RSA public key (starts with -----BEGIN PUBLIC KEY-----)  or click \"Generate Demo Key\" to create one."
+    );
+  }
+
   const pemContents = pemKey
     .replace(/-----BEGIN PUBLIC KEY-----/, "")
     .replace(/-----END PUBLIC KEY-----/, "")
     .replace(/\s/g, "");
 
-  const binaryDer = base64ToArrayBuffer(pemContents);
+  if (pemContents.length === 0) {
+    throw new Error("Public key content is empty. Please paste a valid RSA public key.");
+  }
 
-  return window.crypto.subtle.importKey(
-    "spki",
-    binaryDer,
-    { name: "RSA-OAEP", hash: "SHA-256" },
-    false,
-    ["wrapKey"]
-  );
+  let binaryDer: ArrayBuffer;
+  try {
+    binaryDer = base64ToArrayBuffer(pemContents);
+  } catch {
+    throw new Error(
+      "The public key contains invalid characters. Please paste a valid PEM-encoded RSA public key."
+    );
+  }
+
+  try {
+    return await window.crypto.subtle.importKey(
+      "spki",
+      binaryDer,
+      { name: "RSA-OAEP", hash: "SHA-256" },
+      false,
+      ["wrapKey"]
+    );
+  } catch {
+    throw new Error(
+      "Failed to import the public key. Ensure it is a valid RSA-OAEP public key (4096-bit recommended)."
+    );
+  }
 }
 
 /**
  * Import an RSA-OAEP private key from PEM format for decryption.
  */
 export async function importPrivateKey(pemKey: string): Promise<CryptoKey> {
+  // Validate PEM format
+  if (!pemKey.includes("-----BEGIN PRIVATE KEY-----") || !pemKey.includes("-----END PRIVATE KEY-----")) {
+    throw new Error(
+      "Invalid private key format. Please paste a valid PEM-encoded RSA private key (starts with -----BEGIN PRIVATE KEY-----)."
+    );
+  }
+
   const pemContents = pemKey
     .replace(/-----BEGIN PRIVATE KEY-----/, "")
     .replace(/-----END PRIVATE KEY-----/, "")
     .replace(/\s/g, "");
 
-  const binaryDer = base64ToArrayBuffer(pemContents);
+  if (pemContents.length === 0) {
+    throw new Error("Private key content is empty. Please paste a valid RSA private key.");
+  }
 
-  return window.crypto.subtle.importKey(
-    "pkcs8",
-    binaryDer,
-    { name: "RSA-OAEP", hash: "SHA-256" },
-    false,
-    ["unwrapKey"]
-  );
+  let binaryDer: ArrayBuffer;
+  try {
+    binaryDer = base64ToArrayBuffer(pemContents);
+  } catch {
+    throw new Error(
+      "The private key contains invalid characters. Please paste a valid PEM-encoded RSA private key."
+    );
+  }
+
+  try {
+    return await window.crypto.subtle.importKey(
+      "pkcs8",
+      binaryDer,
+      { name: "RSA-OAEP", hash: "SHA-256" },
+      false,
+      ["unwrapKey"]
+    );
+  } catch {
+    throw new Error(
+      "Failed to import the private key. Ensure it is a valid RSA-OAEP private key matching the public key used for encryption."
+    );
+  }
 }
 
 /**
