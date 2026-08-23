@@ -119,6 +119,8 @@ Open `http://localhost:5173` — the app is immediately usable. No accounts, no 
 
 > **For Judges:** See [docs/DemoPitch.md](docs/DemoPitch.md) for a detailed screen-by-screen walkthrough of both Employee and Admin flows, explaining how each screen maps to the competition rubric criteria and what differentiates Spill from existing solutions.
 
+**Demo Video:** [https://youtu.be/XY4PfPmQPd8](https://youtu.be/XY4PfPmQPd8)
+
 A demonstration video showing the complete flow:
 
 **Employee Flow (anonymous submission):**
@@ -300,9 +302,53 @@ Pytest (MIT), Vitest (MIT), Playwright (Apache 2.0), Ruff (MIT)
 ### Development
 [Kiro](https://kiro.dev) — AI-powered development environment (specs, steering, hooks, skills)
 
-## Team
+## Team — NullTrace
 
-**Developer:** MAQ Said, Naveed
+| Member | Role |
+|--------|------|
+| **Naveed** | Product Visionary & Strategist |
+| **MAQ Said** | Lead Developer & Architect |
+
+### Naveed — Product Visionary & Strategist (STAR)
+
+**Situation:** In Australian workplaces, employees routinely self-censor feedback because existing tools offer anonymity by policy — not by design. The gap between "we promise not to look" and "we technically cannot look" represented an untapped opportunity to build genuine trust between employers and their workforce.
+
+**Task:** Identify a meaningful problem, define a product vision that differentiates from every existing solution, and direct the UX and positioning to resonate with modern employees who are skeptical of corporate promises.
+
+**Action:**
+- Identified the core insight: employees don't trust anonymous surveys because they know the server stores plaintext and logs metadata. Framed the entire product around making identification technically impossible rather than just against policy.
+- Defined user personas: Gen Z employees who won't engage with tools that feel surveillance-adjacent, and non-technical HR administrators who need simplicity over crypto complexity.
+- Directed the trust-first UX approach: banners before forms, plain language over jargon, employment protection notices referencing Australian law, and a confirmation modal that reinforces the privacy guarantee at the moment of maximum anxiety.
+- Coined the positioning: "Not anonymous by policy. Anonymous by design." — a single line that captures the entire differentiator.
+- Specified the file-picker-only approach for admin key upload (no paste, no textarea) after identifying that HR staff find PEM text intimidating.
+- Drove the Australian Privacy Act compliance angle (APPs 1-13, Essential Eight, NDB scheme) as both a legal requirement and a competitive moat.
+- Structured the demo narrative using the STAR method, ensuring every screen shown to judges maps directly to a rubric criterion.
+
+**Result:** A product vision that clearly differentiates from Google Forms, SurveyMonkey, Officevibe, and every Slack bot on the market. A competitive comparison table that proves no existing tool offers true zero-knowledge guarantees. A user experience that treats employee vulnerability with respect rather than dismissing it with a checkbox.
+
+**Reflection:** The most impactful decision was insisting that the system should be anonymous by mathematics, not by access control. This single constraint shaped every technical decision downstream — from client-side encryption to metadata purging to timestamp bucketing.
+
+---
+
+### MAQ Said — Lead Developer & Architect (STAR)
+
+**Situation:** Tasked with transforming a product vision into a fully functional, production-grade, zero-knowledge encrypted platform — from empty repository to 72/72 readiness score — using Kiro IDE as the primary development environment.
+
+**Task:** Design and implement a complete full-stack application covering: client-side encryption (AES-256-GCM + RSA-OAEP 4096-bit), hexagonal backend architecture, MFA admin portal, PostgreSQL persistence, Docker infrastructure, 77 automated tests, Australian privacy compliance, WCAG 2.0 accessibility, and comprehensive Kiro configuration (specs, steering, hooks, skills).
+
+**Action:**
+- **Architecture & Design:** Established hexagonal architecture with strict layer separation — core domain has zero framework imports, enforced via Kiro steering files. Created 6 Architecture Decision Records documenting key choices (encryption standards, timestamp bucketing, session storage, ULID IDs). Designed a 12-layer security model covering content encryption, key exchange, identity elimination, network metadata purging, timestamp bucketing, session management, admin auth, rate limiting, security headers, request hardening, observability, and compliance.
+- **Backend (Python/FastAPI):** Built fully async API using FastAPI + SQLAlchemy + asyncpg. Implemented MetadataPurgingMiddleware (strips IP, User-Agent, X-Forwarded-For, CF-Connecting-IP from every request). Added rate limiting (10 submissions/hour, 60 status checks/minute, 5 auth attempts/15min lockout). Built request hardening (64KB body limit, content-type enforcement, extra field rejection via Pydantic `extra="forbid"`). Applied all security headers (CSP, HSTS, X-Frame-Options DENY, no-referrer, Permissions-Policy, no-cache). Configured structured logging with structlog (JSON in production, never logs encrypted content or tokens). Implemented AdminAuthService with SHA-256 timing-safe token comparison, TOTP MFA with 1-step tolerance, 5-attempt lockout with 15-minute cooldown, 8-hour session TTL, 30-minute idle timeout, and PostgreSQL session persistence.
+- **Frontend (React 18/TypeScript strict):** Implemented Web Crypto API encryption service (AES-256-GCM + RSA-OAEP 4096-bit). Built ephemeral session tokens (128-bit random, sessionStorage only, SHA-256 receipt hash). Created real-time encryption indicator. Designed file-picker private key upload with 5 validations. Built config-driven UI (zero hardcoded text). Added error boundaries, lazy-loaded admin bundle, mobile-first responsive design with 44px touch targets, dark mode, and skip-to-content links.
+- **Security:** Documented 10-vector threat model. Configured MFA credentials. Built RSA-4096 key rotation script. Implemented emergency lockdown. Verified all security headers via automated tests. Ran npm audit + pip-audit. Proved zero-knowledge guarantee: server provably cannot decrypt.
+- **Testing:** 55 backend tests (Pytest unit + integration + Hypothesis property-based). 22 frontend tests (Vitest encryption round-trip + session). Playwright E2E skeleton. 100% pass rate, zero flaky tests.
+- **Kiro Configuration:** Spec-driven workflow (requirements → design → 32 tasks). 24 steering files. 20 agent hooks. 4 custom skills. Every security and architecture rule automatically enforced on every AI interaction and file save.
+- **Infrastructure:** Multi-stage Docker (non-root, healthchecks). Docker Compose (boots in 30s). Alembic migrations (3 revisions). CI/CD (GitHub Actions). Pre-commit (GitLeaks, Ruff, Mypy).
+- **Documentation:** README, threat model, deployment runbook, incident response, security posture, demo pitch (STAR), Kiro usage narrative, 6 ADRs.
+
+**Result:** 72/72 readiness (100%). 77 tests passing. Zero vulnerabilities. Security headers verified. MFA working end-to-end. Docker boots in 30 seconds. $0 cost — fully self-hosted, all open source.
+
+**Reflection:** Kiro's steering files proved to be the highest-leverage feature — they prevented the AI from ever generating code that violated zero-knowledge principles. The 20 hooks created an automated safety net catching privacy violations before commit. The spec-driven workflow eliminated scope creep by tracing every feature to a documented requirement.
 
 ## License
 
