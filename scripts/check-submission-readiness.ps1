@@ -261,8 +261,9 @@ if (Test-Path "$root\docs\project-description.md") {
 
 Write-Host "  No Secrets in Repository:" -ForegroundColor White
 Test-FileExists "$root\backend\.env.example" ".env.example (not .env)"
-if (Test-Path "$root\backend\.env") { Check-Fail "backend/.env exists (should not be committed)" }
-else { Check-Pass "No .env file committed" }
+$envTracked = git ls-files --cached "backend/.env" 2>$null
+if ($envTracked) { Check-Fail "backend/.env is tracked by git (should be gitignored)" }
+else { Check-Pass "backend/.env not tracked by git" }
 if (Test-Path "$root\frontend\.env") { Check-Fail "frontend/.env exists (should not be committed)" }
 else { Check-Pass "No frontend .env committed" }
 

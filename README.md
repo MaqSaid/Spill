@@ -109,7 +109,15 @@ Open `http://localhost:5173` — the app is immediately usable. No accounts, no 
 - Docker & Docker Compose (only requirement for evaluation)
 - Node.js 20+ / Python 3.11+ (only for development)
 
+## Usage Instructions
+
+1. **Submit Feedback** (Employee): Open `http://localhost:5173`. Encryption is automatic. Select category + impact, type feedback, click "Encrypt & Submit Anonymously."
+2. **Check Status** (Employee): Visit "My Status" tab during the same browser session. Closing the tab permanently ends your session.
+3. **Admin Portal** (Manager): Go to `/admin`, authenticate with token + TOTP code, upload private key file (.pem) to decrypt submissions and manage statuses.
+
 ## Demo Video
+
+> **For Judges:** See [docs/DemoPitch.md](docs/DemoPitch.md) for a detailed screen-by-screen walkthrough of both Employee and Admin flows, explaining how each screen maps to the competition rubric criteria and what differentiates Spill from existing solutions.
 
 A demonstration video showing the complete flow:
 

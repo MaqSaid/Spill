@@ -67,7 +67,7 @@ export const appConfig = {
       },
     ] as BannerConfig[],
     footer: {
-      text: "Zero-knowledge anonymous feedback platform — Your privacy is mathematically guaranteed",
+      text: "Not anonymous by policy. Anonymous by design. — Your privacy is mathematically guaranteed",
       links: [
         { label: "Privacy Policy", path: "/privacy" },
         { label: "How It Works", path: "/help" },
