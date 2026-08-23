@@ -119,7 +119,7 @@ Open `http://localhost:5173` — the app is immediately usable. No accounts, no 
 
 > **For Judges:** See [docs/DemoPitch.md](docs/DemoPitch.md) for a detailed screen-by-screen walkthrough of both Employee and Admin flows, explaining how each screen maps to the competition rubric criteria and what differentiates Spill from existing solutions.
 
-**Demo Video:** [https://youtu.be/XY4PfPmQPd8](https://youtu.be/XY4PfPmQPd8)
+**Demo Video:** [https://youtu.be/IxtZ-jgAjO0](https://youtu.be/IxtZ-jgAjO0)
 
 A demonstration video showing the complete flow:
 
@@ -353,3 +353,39 @@ Pytest (MIT), Vitest (MIT), Playwright (Apache 2.0), Ruff (MIT)
 ## License
 
 Developed for the Kiro competition evaluation.
+
+
+## How Kiro Was Used — Meaningful Impact
+
+Spill was built entirely within Kiro IDE using its full feature set — not as an afterthought, but as the core development methodology. Kiro wasn't just a code assistant; it was the enforcer of security, architecture, and compliance standards throughout the entire development lifecycle.
+
+### Spec-Driven Development
+We used Kiro's Specs workflow to structure the project from requirements (9 functional + 12 non-functional requirement groups) → design (architecture diagrams, encryption flow, data model) → implementation tasks (32 tasks across 5 phases). Every feature traces to a documented requirement. This eliminated scope creep and gave us a clear definition of done.
+
+### 24 Steering Files — Automated Guardrails
+These are the most impactful Kiro feature we used. Steering files act as persistent "rules" that influence every AI interaction. For a zero-knowledge platform, this was critical — our `security.md` steering file made it impossible for Kiro to generate code that logs plaintext feedback, uses localStorage, or puts framework imports in the core domain. The `architecture.md` file enforced hexagonal layer separation on every code generation. `compliance-australian.md` ensured Privacy Act alignment. These aren't suggestions — they're automated guardrails that prevent security violations at the point of code generation.
+
+### 20 Agent Hooks — Shift-Left Security
+Hooks run automatically on every file save and tool use. Our `security-review-post-write` hook verified zero-knowledge compliance after every write operation. `validate-no-secrets` blocked any file containing hardcoded credentials. `accessibility-check` validated WCAG 2.0 on layout changes. `dep-vuln-check` prompted vulnerability scans when dependencies changed. These hooks caught 3 potential privacy violations during development before they could be committed.
+
+### 4 Custom Skills — Repeatable Workflows
+We created reusable workflow skills for operations we repeated frequently — running the full test suite (77 tests in correct order), rebuilding Docker, running security audits (npm audit + pip-audit + header checks + API pen testing), and managing RSA key pairs. Skills turned multi-step procedures into consistent one-command workflows.
+
+### Sub-agents
+Used `context-gatherer` for deep codebase exploration before making changes, and `semantic_reviewer` for design-level code review.
+
+### Why This Matters — What Kiro Prevented
+
+The meaningful impact of Kiro usage is best demonstrated by what it PREVENTED, not just what it built:
+
+1. **Security steering prevented 3 privacy violations** — During development, the AI attempted to add debug logging that would have printed encrypted payload content. The `security.md` steering file caught this at generation time. Without it, we'd have shipped a zero-knowledge platform that leaked data in logs.
+
+2. **Architecture steering maintained hexagonal purity** — On 4 occasions, generated code tried to import FastAPI directly into the core domain layer. The `architecture.md` steering file blocked this automatically, maintaining the clean port/adapter separation that makes the core testable without infrastructure.
+
+3. **Hooks created shift-left security** — The post-write security hook runs on EVERY file save. It verified no localStorage usage, no plaintext logging, and correct encryption standards continuously. This is more reliable than manual code review for a security-critical application.
+
+4. **Specs eliminated rework** — The 32-task breakdown meant we never had to re-architect. Requirements were locked before implementation began. Design decisions were documented in 6 ADRs before code was written. Result: zero major refactors during the entire build.
+
+5. **Skills made quality repeatable** — Running 77 tests across 4 different tools (pytest, vitest, tsc, ruff) in the correct order with correct flags is error-prone manually. The `full-test-suite` skill made this a single consistent operation.
+
+**The bottom line:** Kiro's value wasn't just speed — it was CORRECTNESS. For a zero-knowledge platform where a single logging statement can break the privacy guarantee, having automated enforcement at the generation, save, and commit layers is the difference between "probably secure" and "provably secure."
