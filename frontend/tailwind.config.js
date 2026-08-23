@@ -17,6 +17,12 @@ export default {
           800: "#3b5bdb",
           900: "#364fc7",
         },
+        brand: {
+          primary: 'rgb(var(--color-primary) / <alpha-value>)',
+          'primary-light': 'rgb(var(--color-primary-light) / <alpha-value>)',
+          'primary-dark': 'rgb(var(--color-primary-dark) / <alpha-value>)',
+          accent: 'rgb(var(--color-accent) / <alpha-value>)',
+        },
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],

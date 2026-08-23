@@ -3,6 +3,28 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-primary: 79 70 229;
+    --color-primary-light: 99 102 241;
+    --color-primary-dark: 67 56 202;
+    --color-accent: 16 185 129;
+    --color-background: 249 250 251;
+    --color-surface: 255 255 255;
+    --color-text: 17 24 39;
+    --color-text-muted: 107 114 128;
+  }
+
+  .dark {
+    --color-primary: 129 140 248;
+    --color-primary-light: 165 180 252;
+    --color-primary-dark: 99 102 241;
+    --color-accent: 52 211 153;
+    --color-background: 17 24 39;
+    --color-surface: 31 41 55;
+    --color-text: 243 244 246;
+    --color-text-muted: 156 163 175;
+  }
+
   body {
     @apply min-h-screen;
   }

@@ -177,7 +177,7 @@ export default function SubmitPage() {
       <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-3" role="alert">
         <p className="text-sm text-amber-800 flex items-center gap-2">
           <span aria-hidden="true">⚠️</span>
-          <span><strong>Submissions are final.</strong> Cannot be edited. You may withdraw within 24 hours via &quot;My Status&quot;.</span>
+          <span><strong>Submissions are final.</strong> Cannot be edited. You may withdraw within 24 hours via &quot;My Status&quot; — but only while this browser tab remains open. Closing the tab ends your session permanently.</span>
         </p>
       </div>
 
@@ -265,7 +265,7 @@ export default function SubmitPage() {
               <p className="text-sm text-green-800"><strong>Your identity is cryptographically protected.</strong> No one — not even system administrators — can determine who submitted this.</p>
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-              <p className="text-sm text-amber-800"><strong>Cannot be modified after sending.</strong> You may withdraw within 24 hours from &quot;My Status&quot;.</p>
+              <p className="text-sm text-amber-800"><strong>Cannot be modified after sending.</strong> You may withdraw within 24 hours from &quot;My Status&quot; — only while this tab stays open.</p>
             </div>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setShowConfirmation(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50" autoFocus>Cancel</button>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { getReceiptHash, hasSessionToken } from "../services/session";
-import { checkStatus, type StatusItem } from "../services/api";
+import { checkStatus, withdrawSubmission, type StatusItem } from "../services/api";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   submitted: { label: "Submitted", color: "bg-blue-100 text-blue-800" },
@@ -22,6 +22,8 @@ export default function StatusPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [hasToken, setHasToken] = useState(false);
+  const [withdrawing, setWithdrawing] = useState<string | null>(null);
+  const [withdrawConfirm, setWithdrawConfirm] = useState<string | null>(null);
 
   const fetchStatuses = useCallback(async () => {
     if (!hasSessionToken()) {
@@ -48,6 +50,21 @@ export default function StatusPage() {
   useEffect(() => {
     fetchStatuses();
   }, [fetchStatuses]);
+
+  const handleWithdraw = useCallback(async (submissionId: string) => {
+    setWithdrawing(submissionId);
+    setError("");
+    try {
+      const receiptHash = await getReceiptHash();
+      await withdrawSubmission(submissionId, receiptHash);
+      setSubmissions((prev) => prev.filter((s) => s.submission_id !== submissionId));
+      setWithdrawConfirm(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Withdrawal failed");
+    } finally {
+      setWithdrawing(null);
+    }
+  }, []);
 
   if (!hasToken) {
     return (
@@ -151,6 +168,35 @@ export default function StatusPage() {
                     <span className="font-medium">Note:</span>{" "}
                     {item.status_note}
                   </p>
+                </div>
+              )}
+              {item.status === "submitted" && (
+                <div className="mt-2 pt-2 border-t border-gray-100">
+                  {withdrawConfirm === item.submission_id ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-red-600">Are you sure? This cannot be undone.</span>
+                      <button
+                        onClick={() => handleWithdraw(item.submission_id)}
+                        disabled={withdrawing === item.submission_id}
+                        className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+                      >
+                        {withdrawing === item.submission_id ? "Withdrawing..." : "Yes, Withdraw"}
+                      </button>
+                      <button
+                        onClick={() => setWithdrawConfirm(null)}
+                        className="px-2 py-1 text-xs text-gray-500 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setWithdrawConfirm(item.submission_id)}
+                      className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors"
+                    >
+                      Withdraw this submission
+                    </button>
+                  )}
                 </div>
               )}
             </div>

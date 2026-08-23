@@ -115,6 +115,29 @@ export async function checkStatus(
 }
 
 /**
+ * Withdraw a submission (within 24 hours, same session).
+ */
+export async function withdrawSubmission(
+  submissionId: string,
+  receiptHash: string
+): Promise<{ detail: string }> {
+  const response = await fetch(`${API_BASE}/submissions/${submissionId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ receipt_hash: receiptHash }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      (error as { detail?: string }).detail || `Withdrawal failed: ${response.status}`
+    );
+  }
+
+  return response.json() as Promise<{ detail: string }>;
+}
+
+/**
  * Admin login with token + TOTP code.
  */
 export async function adminLogin(
