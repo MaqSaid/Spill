@@ -294,7 +294,7 @@ Pytest (MIT), Vitest (MIT), Playwright (Apache 2.0), Ruff (MIT)
 
 ## Team
 
-**Developer:** Solo project
+**Developer:** MAQ Said, Naveed A
 
 ## License
 
