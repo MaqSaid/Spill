@@ -52,5 +52,4 @@ class RequestHardeningMiddleware(BaseHTTPMiddleware):
                         content={"detail": "Content-Type must be application/json."},
                     )
 
-        response = await call_next(request)
-        return response
+        return await call_next(request)

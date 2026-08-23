@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Dependency Vulnerability Check",
+      "trigger": "PostFileSave",
+      "description": "Prompts vulnerability scan when dependency files are modified",
+      "matcher": "package\\\\.json$|pyproject\\\\.toml$",
+      "action": {
+        "type": "agent",
+        "prompt": "A dependency file was modified. Remind the developer to run `npm audit` (frontend) or `pip-audit` (backend) to check for known vulnerabilities before committing. If new dependencies were added, verify they are well-maintained, actively used, and not typosquatting variants."
+      }
+    }
+  ]
+}

@@ -1,127 +1,78 @@
-# Spill — Zero-Knowledge Anonymous Employee Feedback Platform
+# Spill — Not Anonymous by Policy. Anonymous by Design.
 
-Spill is an anonymous employee feedback platform built with a **zero-knowledge architecture**. Feedback is encrypted in the browser using AES-256-GCM before ever reaching the server. The server stores only ciphertext — it cannot read, analyze, or correlate submissions to individuals.
+> A zero-knowledge employee feedback platform where the server is **cryptographically incapable** of reading submissions. Built with Kiro's spec-driven development, 24 steering files, 20 agent hooks, and 4 custom skills.
 
-## Why Spill?
+## The Problem
 
-Traditional feedback systems require user accounts, track IP addresses, and store plaintext. Spill eliminates these trust requirements:
+Traditional feedback tools (Google Forms, SurveyMonkey, Officevibe, Slack bots) all share a fatal flaw: they store plaintext responses, log IP addresses, track sessions, and record timestamps. Employees know this — and self-censor.
 
-- **No accounts** — no authentication, no identity tracking
-- **Client-side encryption** — server never sees plaintext content
-- **Metadata purging** — IP addresses, User-Agent strings, and all identifying headers are stripped
-- **Timestamp bucketing** — only dates stored (no precise timestamps), preventing timing correlation
-- **Session-scoped** — receipt tokens live only in `sessionStorage`, destroyed on tab close
+**Result:** Organizations get sanitized, useless feedback while real concerns go unspoken.
+
+## The Solution
+
+Spill makes identification **technically impossible** — not just against policy:
+
+| Tool | Plaintext on Server | IP Logging | User Accounts | True Anonymity |
+|------|:---:|:---:|:---:|:---:|
+| Google Forms | Yes | Yes | Optional | No |
+| SurveyMonkey | Yes | Yes | Yes | No |
+| Officevibe / Lattice | Yes | Yes | Yes | No |
+| Slack anonymous bots | Yes | Yes | Via Slack | No |
+| **Spill** | **No** | **No** | **None** | **Yes** |
+
+## Key Features
+
+1. **Zero-Knowledge Encryption** — Feedback encrypted in the browser with AES-256-GCM + RSA-OAEP 4096-bit before network transit. Server stores only ciphertext.
+2. **Complete Anonymity** — No accounts, no IP logging, no cookies, no User-Agent. `MetadataPurgingMiddleware` overrides all client IPs to `0.0.0.0`.
+3. **MFA Admin Portal** — Token + TOTP two-factor authentication. Private key upload via file picker (never sent to server). Status management with enforced state machine.
+4. **Session-Based Status Tracking** — Employees track submission status during their browser session. Ephemeral tokens destroyed on tab close. Impossible to correlate across sessions.
+5. **Australian Privacy Act Compliance** — APPs 1-13, Essential Eight Maturity Level 2, Notifiable Data Breaches scheme. Data sovereignty documented.
+6. **Hexagonal Architecture** — Core domain has zero framework imports. Clean separation enables comprehensive testing with simple mocks.
+7. **Defense in Depth** — Rate limiting, timestamp bucketing (date only), request hardening (64KB limit, content-type enforcement), security headers (CSP, HSTS, X-Frame-Options).
 
 ## Architecture
 
 ```
-┌───────────────────── Browser ─────────────────────┐
-│  SubmitPage → EncryptionService → API Client      │
-│        ↓                                          │
-│  AES-256-GCM + RSA-OAEP (4096-bit)              │
-└──────────────────────┬────────────────────────────┘
-                       │ HTTPS (ciphertext only)
-┌──────────────────────┴────────────────────────────┐
-│  FastAPI + MetadataPurgingMiddleware              │
-│  ┌─────────────────────────────────────────────┐  │
-│  │ Hexagonal Architecture                      │  │
-│  │  Routers → Use Cases → Repository Port      │  │
-│  │                             ↓               │  │
-│  │              PostgresRepo (SQLAlchemy)       │  │
-│  └─────────────────────────────────────────────┘  │
-└──────────────────────┬────────────────────────────┘
-                       │
-                ┌──────┴──────┐
-                │ PostgreSQL  │
-                └─────────────┘
+┌────────────────────── Browser ──────────────────────┐
+│  SubmitPage → EncryptionService → API Client        │
+│        ↓                                            │
+│  AES-256-GCM + RSA-OAEP (4096-bit)                │
+└───────────────────────┬─────────────────────────────┘
+                        │ HTTPS (ciphertext only)
+┌───────────────────────┴─────────────────────────────┐
+│  FastAPI + MetadataPurgingMiddleware                │
+│  ┌──────────────────────────────────────────────┐   │
+│  │ Hexagonal Architecture                       │   │
+│  │  Routers → Use Cases → Repository Port       │   │
+│  │                             ↓                │   │
+│  │              PostgresRepo (SQLAlchemy async)  │   │
+│  └──────────────────────────────────────────────┘   │
+└───────────────────────┬─────────────────────────────┘
+                        │
+                 ┌──────┴──────┐
+                 │ PostgreSQL  │
+                 └─────────────┘
 ```
 
-The backend follows **Hexagonal Architecture** (Ports and Adapters):
-- **Core Domain**: Entities, use cases, and port protocols — zero framework dependencies
-- **Driving Adapters**: FastAPI routers (thin HTTP translation layer)
-- **Driven Adapters**: PostgreSQL repository, ULID generator
+**Backend** (Hexagonal / Ports and Adapters):
+- **Core Domain** (`core/`): Entities, use cases, port protocols — zero framework dependencies
+- **Driving Adapters** (`adapters/api/`): FastAPI routers, middleware, Pydantic schemas
+- **Driven Adapters** (`adapters/db/`): PostgreSQL repository, session store, ULID generator
+
+**Frontend** (React 18 + TypeScript strict):
+- **Services**: Encryption (Web Crypto API), session management, API client
+- **Pages**: SubmitPage, StatusPage, AdminPage, PrivacyPage, HelpPage
+- **Config-driven**: All UI text from centralized `app-config.ts` — zero hardcoded content
 
 ## Encryption Flow
 
-1. Browser generates a random 256-bit AES-GCM key
-2. Feedback text is encrypted with AES-GCM → ciphertext + 12-byte IV
-3. AES key is wrapped with the organization's RSA-OAEP 4096-bit public key
-4. `{ ciphertext, iv, wrappedKey }` is sent to the server (all Base64-encoded)
-5. Server stores the encrypted blob — it **cannot** decrypt
-6. Admin imports private key in their browser → unwraps AES key → decrypts feedback
-
-## Quick Start
-
-### For Judges / Evaluators
-
-```bash
-git clone <repository-url>
-cd Spill
-docker-compose up
 ```
-
-Then open http://localhost:5173 in your browser. No accounts, no login, no API keys needed — the app is immediately usable. See [Test Credentials](#test-credentials) for the full testing flow.
-
-### Prerequisites
-
-- Docker & Docker Compose
-- Node.js 20+ (for frontend development)
-- Python 3.11+ (for backend development)
-
-### Run with Docker (Full Stack)
-
-```bash
-docker-compose up
-```
-
-This starts PostgreSQL, the backend API (port 8000), and the frontend dev server (port 5173).
-
-### Manual Development Setup
-
-**Backend:**
-
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate  # or .venv\Scripts\Activate.ps1 on Windows
-pip install -e ".[dev]"
-cp .env.example .env
-# Start PostgreSQL (e.g., via Docker)
-alembic upgrade head
-uvicorn spill.adapters.api.app:create_app --factory --reload --port 8000
-```
-
-**Frontend:**
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The frontend dev server proxies `/api` requests to `localhost:8000`.
-
-## Running Tests
-
-**Backend (pytest):**
-
-```bash
-cd backend
-pytest -q --tb=short
-```
-
-**Frontend (vitest):**
-
-```bash
-cd frontend
-npm test -- --silent
-```
-
-**End-to-end (Playwright):**
-
-```bash
-cd frontend
-npx playwright test
+1. Browser generates random 256-bit AES-GCM key
+2. Feedback encrypted with AES-GCM → ciphertext + 12-byte IV
+3. AES key wrapped with org's RSA-OAEP 4096-bit public key → wrapped key
+4. Server stores: { ciphertext, iv, wrappedKey } (all Base64)
+5. Server CANNOT decrypt — only private key holder can
+6. Admin imports .pem file in browser → unwraps AES key → decrypts locally
 ```
 
 ## Security Model
@@ -133,11 +84,85 @@ npx playwright test
 | Identity | No accounts, no auth tokens, no cookies |
 | Network Metadata | MetadataPurgingMiddleware strips all identifying headers |
 | Client IP | Overridden to `0.0.0.0` in ASGI scope |
-| Timestamps | DATE only (24-hour buckets) |
+| Timestamps | DATE only (24-hour buckets prevent timing correlation) |
 | Session | `sessionStorage` only — cleared on tab close |
 | Randomness | `crypto.getRandomValues()` (CSPRNG) |
+| Admin Auth | Token (SHA-256 hash) + TOTP (6-digit, 1-step tolerance) |
+| Rate Limiting | 10 submissions/hour, 60 status checks/minute, 5 auth attempts/15min |
+| Headers | HSTS, CSP, X-Frame-Options DENY, no-referrer, Permissions-Policy |
+| Request Hardening | 64KB body limit, JSON content-type enforcement, extra fields rejected |
 
-See [docs/threat-model.md](docs/threat-model.md) for the full threat model.
+See [docs/threat-model.md](docs/threat-model.md) for 10 documented attack vectors with mitigations.
+
+## Quick Start (Evaluators)
+
+```bash
+git clone <repository-url>
+cd Spill
+docker-compose up
+```
+
+Open `http://localhost:5173` — the app is immediately usable. No accounts, no API keys, no setup needed.
+
+### Prerequisites
+
+- Docker & Docker Compose (only requirement for evaluation)
+- Node.js 20+ / Python 3.11+ (only for development)
+
+## Demo Video
+
+A demonstration video showing the complete flow:
+
+**Employee Flow (anonymous submission):**
+1. Open the app — trust banners visible, encryption auto-configured
+2. Select category (Complaint) + impact (Critical), type feedback
+3. Click "Encrypt & Submit Anonymously" — encryption indicator animates
+4. Confirmation with submission ID shown
+5. "My Status" tab — see live status updates from admin
+
+**Admin Flow (MFA + decryption):**
+1. Navigate to `/admin` — MFA login gate
+2. Enter admin token + 6-digit TOTP code from authenticator app
+3. Upload `.pem` private key file via file picker
+4. Click "Click to decrypt" — plaintext revealed client-side only
+5. Update status → employee sees change in real time
+
+## Test Credentials
+
+**Admin Login (for judges/evaluators):**
+- Admin Token: `spill-admin-250c672a0a3885f62c417bc275fce211`
+- TOTP Secret (add to Google Authenticator): `MEUYSWEPGOKQYJRUSHNP6NBODBRAVHKZ`
+- QR URI: `otpauth://totp/Spill:admin%40spill?secret=MEUYSWEPGOKQYJRUSHNP6NBODBRAVHKZ&issuer=Spill`
+
+**Private Key for Decryption:**
+- File: `spill_private_key.pem` (project root)
+- Upload via file picker in Admin Dashboard after login
+
+**Quick TOTP Code (CLI):**
+```bash
+python -c "import pyotp; print(pyotp.TOTP('MEUYSWEPGOKQYJRUSHNP6NBODBRAVHKZ').now())"
+```
+
+No external API keys, cloud services, or paid accounts needed. Fully self-hosted.
+
+## Running Tests
+
+```bash
+# Backend — 55 tests (unit + integration + property-based)
+cd backend && python -m pytest -q --tb=short
+
+# Frontend — 22 tests (encryption, session, round-trip)
+cd frontend && npx vitest run
+
+# TypeScript strict mode
+cd frontend && npx tsc --noEmit
+
+# Python linter
+cd backend && ruff check src/
+
+# End-to-end (Playwright)
+cd frontend && npx playwright test
+```
 
 ## Project Structure
 
@@ -145,110 +170,132 @@ See [docs/threat-model.md](docs/threat-model.md) for the full threat model.
 spill/
 ├── backend/
 │   ├── src/spill/
-│   │   ├── core/           # Domain entities, use cases, ports (pure Python)
-│   │   ├── adapters/       # FastAPI routers, SQLAlchemy repos, middleware
-│   │   └── config/         # Settings (pydantic-settings)
-│   ├── tests/              # Unit, integration, property-based tests
-│   ├── alembic/            # Database migrations
-│   └── Dockerfile          # Multi-stage production build
+│   │   ├── core/              # Pure domain (zero framework imports)
+│   │   │   ├── entities/      # Submission (frozen dataclass, state machine)
+│   │   │   ├── ports/         # Repository Protocol, IdGenerator Protocol
+│   │   │   ├── services/      # AdminAuthService (token + TOTP + sessions)
+│   │   │   └── use_cases/     # SubmitFeedback, CheckStatus, ManageSubmissions
+│   │   ├── adapters/
+│   │   │   ├── api/           # FastAPI routers, middleware, security headers
+│   │   │   └── db/            # PostgreSQL repository, session store
+│   │   └── config/            # Pydantic settings (env-based)
+│   ├── tests/                 # Unit, integration, property-based (Hypothesis)
+│   ├── alembic/               # Database migrations
+│   └── Dockerfile             # Multi-stage, non-root user, healthcheck
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/          # SubmitPage, StatusPage, AdminPage
-│   │   ├── services/       # Encryption, session, API client
-│   │   ├── components/     # EncryptionIndicator, shared UI
-│   │   └── test/           # Vitest + Playwright tests
-│   └── Dockerfile          # Multi-stage with nginx production
-├── docs/                   # ADRs, threat model, deployment runbook
-├── .kiro/                  # Kiro configuration (steering, hooks, specs)
-└── docker-compose.yml      # Full-stack local development
+│   │   ├── pages/             # SubmitPage, StatusPage, AdminPage, Privacy, Help
+│   │   ├── services/          # Encryption (Web Crypto), session, API client
+│   │   ├── layouts/           # EmployeeLayout, AdminLayout (skip-to-content, ARIA)
+│   │   ├── components/        # EncryptionIndicator, ErrorBoundary
+│   │   └── config/            # app-config.ts (all UI text, zero hardcoding)
+│   ├── src/test/              # Vitest + Playwright
+│   └── Dockerfile             # Multi-stage with dev target
+├── scripts/
+│   └── rotate-keys.py         # One-command key rotation utility
+├── docs/
+│   ├── threat-model.md        # 10 attack vectors with mitigations
+│   ├── kiro-usage.md          # How Kiro features were used (detailed narrative)
+│   ├── project-description.md # Competition submission description
+│   ├── canary-deployment-runbook.md
+│   ├── incident-response.md   # NDB scheme, 72-hour notification
+│   ├── security-posture.md    # DevSecOps pipeline breakdown
+│   └── adr/                   # 6 Architecture Decision Records
+├── .kiro/
+│   ├── specs/                 # requirements.md, design.md, tasks.md (32 tasks)
+│   ├── steering/              # 24 steering files
+│   ├── hooks/                 # 20 agent hooks
+│   └── skills/                # 4 custom skills
+└── docker-compose.yml         # Full-stack (PostgreSQL + Backend + Frontend)
 ```
 
 ## Kiro-Powered Development
 
-This project was developed using [Kiro](https://kiro.dev), an AI-powered development environment. See [docs/kiro-usage.md](docs/kiro-usage.md) for details on how Kiro features were used:
+This project was developed using [Kiro](https://kiro.dev). Full details in [docs/kiro-usage.md](docs/kiro-usage.md).
 
-- **Specs**: Requirements → Design → Tasks workflow for structured feature development
-- **Steering files** (11): Architecture, security, testing, deployment, and language-specific coding standards
-- **Agent hooks** (10): Automated linting, security scanning, test execution, and validation on file save
-- **Pre-commit hooks**: GitLeaks, Ruff, Mypy for shift-left security and quality
+### Specs (Structured Requirements → Design → Implementation)
+- **requirements.md**: 9 functional requirement groups (FR-1 through FR-9), 12 non-functional (NFR-1 through NFR-12)
+- **design.md**: Architecture diagrams, component responsibilities, encryption flow, data model
+- **tasks.md**: 32 implementation tasks across 5 phases — all complete
+
+### Steering Files (24)
+Persistent context that enforces standards on every AI interaction:
+- Architecture (hexagonal rules), Security (4 files: core, headers, hardening, admin auth)
+- Compliance (Australian Privacy Act), Observability (structured logging, metrics)
+- Language standards (Python, TypeScript, React, Docker, Git)
+- Domain knowledge, employee trust UX, configurable UI, theming
+
+### Agent Hooks (20)
+Automated quality gates on every file save:
+- **Security** (6): Secret scanning, post-write crypto verification, header validation, admin auth enforcement, dependency audit
+- **Compliance** (3): Privacy Act checks, accessibility (WCAG 2.0), logging safety
+- **Code Quality** (4): Python lint (Ruff), frontend lint, auto-test, TypeScript strict
+- **Workflow** (7): Commit format, Docker validation, env safety, steering-first reminders, submission readiness
+
+### Custom Skills (4)
+Repeatable workflow templates:
+- `full-test-suite` — Run all tests + linters in correct order
+- `docker-rebuild` — Rebuild and verify Docker stack
+- `security-audit` — npm audit + pip-audit + headers + API pen test
+- `key-management` — Generate, configure, and rotate RSA key pairs
 
 ## Tech Stack
 
 | Component | Technology |
 |-----------|-----------|
 | Backend | Python 3.11+, FastAPI, SQLAlchemy (async), Pydantic v2 |
-| Frontend | React 18, TypeScript 5, Vite, Tailwind CSS |
+| Frontend | React 18, TypeScript 5 (strict), Vite, Tailwind CSS |
 | Database | PostgreSQL 16 (asyncpg driver) |
-| Encryption | Web Crypto API (AES-256-GCM + RSA-OAEP) |
-| Testing | Pytest, Hypothesis, Vitest, Playwright |
-| Infrastructure | Docker (multi-stage), Docker Compose |
-| Code Quality | Ruff, Mypy (strict), ESLint, Pre-commit |
-
-## Usage Instructions
-
-1. **Submit Feedback** (Employee): Navigate to the Submit page, paste the organization's RSA public key, select a category and impact level, write your feedback, and click "Encrypt & Submit Anonymously."
-2. **Check Status** (Employee): Visit the "My Status" tab during the same browser session to see your submission's progress.
-3. **Admin Portal** (Manager): Go to the Admin page, import the RSA private key to decrypt submissions, and update statuses as needed.
-
-### Generating Demo Keys
-
-On the Admin page, click "Generate Demo Key Pair" to create a test RSA-4096 key pair. Use the public key for submissions and the private key for decryption.
-
-## Test Credentials
-
-No authentication is required — the system is anonymous by design. To test the full flow:
-
-1. Generate a key pair on the Admin page (or use any RSA-4096 OAEP key pair)
-2. Copy the public key and use it on the Submit page
-3. Submit feedback — it will be encrypted client-side
-4. On the Admin page, paste the private key to decrypt
-
-No API keys, accounts, or external service credentials are needed.
+| Encryption | Web Crypto API (AES-256-GCM + RSA-OAEP 4096-bit) |
+| Auth | SHA-256 token hash + TOTP (pyotp), timing-safe comparison |
+| Testing | Pytest + Hypothesis (property-based), Vitest, Playwright |
+| Infrastructure | Docker (multi-stage), Docker Compose, Alembic migrations |
+| Code Quality | Ruff, Mypy (strict), ESLint, Pre-commit (GitLeaks) |
+| Observability | structlog (JSON), Prometheus metrics, X-Request-ID tracing |
 
 ## API & Service Costs
 
-This application is fully self-hosted with zero external API dependencies:
-
-- **No third-party APIs** — all encryption is client-side via Web Crypto API
-- **No cloud services** — runs entirely on Docker Compose
-- **No costs** — all dependencies are open source
+**$0 total.** This application is fully self-hosted with zero external dependencies:
+- All encryption via Web Crypto API (browser-native, no third-party)
+- No cloud services, no SaaS APIs, no payment required
+- All dependencies are open source (MIT/BSD/Apache/MPL)
+- Runs entirely on `docker-compose up`
 
 ## Rate Limits
 
-The admin endpoint is globally rate-limited to 100 requests per 60-second window to prevent brute-force enumeration of encrypted payloads. This applies to `/api/v1/admin/*` endpoints only.
+| Endpoint | Limit | Scope |
+|----------|-------|-------|
+| Submit feedback | 10/hour | Per session hash |
+| Check status | 60/minute | Per session hash |
+| Admin auth | 5 attempts/15min | Global (lockout) |
+| Admin API | 100/minute | Global |
+
+## Privacy & Compliance
+
+- **Australian Privacy Act 1988** — APPs 1-13 compliance documented
+- **Essential Eight** — Maturity Level 2 alignment
+- **Notifiable Data Breaches** — 72-hour notification procedure in [docs/incident-response.md](docs/incident-response.md)
+- **Data Sovereignty** — Designed for Australian hosting (no cross-border transfer)
+- **WCAG 2.0 AA** — Skip-to-content links, ARIA labels, 44px touch targets, semantic HTML
 
 ## Attribution
 
-### Backend Dependencies
-- [FastAPI](https://fastapi.tiangolo.com/) — MIT License
-- [SQLAlchemy](https://www.sqlalchemy.org/) — MIT License
-- [Pydantic](https://docs.pydantic.dev/) — MIT License
-- [Uvicorn](https://www.uvicorn.org/) — BSD License
-- [Alembic](https://alembic.sqlalchemy.org/) — MIT License
-- [python-ulid](https://github.com/mdomke/python-ulid) — MIT License
-- [asyncpg](https://github.com/MagicStack/asyncpg) — Apache 2.0
+### Backend
+FastAPI (MIT), SQLAlchemy (MIT), Pydantic (MIT), Uvicorn (BSD), Alembic (MIT), python-ulid (MIT), asyncpg (Apache 2.0), pyotp (MIT), structlog (MIT), Hypothesis (MPL 2.0), tenacity (Apache 2.0)
 
-### Frontend Dependencies
-- [React](https://react.dev/) — MIT License
-- [React Router](https://reactrouter.com/) — MIT License
-- [Vite](https://vitejs.dev/) — MIT License
-- [Tailwind CSS](https://tailwindcss.com/) — MIT License
-- [TypeScript](https://www.typescriptlang.org/) — Apache 2.0
+### Frontend
+React (MIT), React Router (MIT), Vite (MIT), Tailwind CSS (MIT), TypeScript (Apache 2.0)
 
-### Testing & Quality
-- [Pytest](https://pytest.org/) — MIT License
-- [Hypothesis](https://hypothesis.readthedocs.io/) — MPL 2.0
-- [Vitest](https://vitest.dev/) — MIT License
-- [Playwright](https://playwright.dev/) — Apache 2.0
-- [Ruff](https://docs.astral.sh/ruff/) — MIT License
+### Testing
+Pytest (MIT), Vitest (MIT), Playwright (Apache 2.0), Ruff (MIT)
 
-### Development Tools
-- [Kiro](https://kiro.dev) — AI-powered development environment (used for specs, steering, and hooks)
+### Development
+[Kiro](https://kiro.dev) — AI-powered development environment (specs, steering, hooks, skills)
 
 ## Team
 
-- **Developer**: Solo project
+**Developer:** Solo project
 
 ## License
 
-This project is developed for evaluation purposes.
+Developed for the Kiro competition evaluation.

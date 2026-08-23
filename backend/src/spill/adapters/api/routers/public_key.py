@@ -25,4 +25,6 @@ async def get_public_key() -> dict[str, str]:
             detail="Encryption not configured. Contact your administrator.",
         )
 
-    return {"public_key": settings.org_public_key}
+    # Handle single-line PEM with escaped newlines from env var
+    key = settings.org_public_key.replace("\\n", "\n")
+    return {"public_key": key}

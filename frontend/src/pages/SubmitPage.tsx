@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { encryptFeedback, importPublicKey, generateKeyPair } from "../services/encryption";
+import { encryptFeedback, importPublicKey } from "../services/encryption";
 import { getReceiptHash } from "../services/session";
 import { submitFeedback, fetchPublicKey } from "../services/api";
 import EncryptionIndicator from "../components/EncryptionIndicator";
@@ -61,8 +61,6 @@ export default function SubmitPage() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [orgPublicKeyPem, setOrgPublicKeyPem] = useState<string | null>(null);
   const [keyLoading, setKeyLoading] = useState(true);
-  const [generatingKey, setGeneratingKey] = useState(false);
-
   const isFormComplete = category !== "" && impact !== "" && feedback.trim().length > 0 && orgPublicKeyPem !== null;
 
   useEffect(() => {
@@ -80,19 +78,6 @@ export default function SubmitPage() {
     }
     loadKey();
     return () => { cancelled = true; };
-  }, []);
-
-  const handleGenerateKey = useCallback(async () => {
-    setGeneratingKey(true);
-    try {
-      const keys = await generateKeyPair();
-      setOrgPublicKeyPem(keys.publicKey);
-      sessionStorage.setItem("spill_demo_private_key", keys.privateKey);
-    } catch {
-      setErrorMessage("Failed to generate key pair.");
-    } finally {
-      setGeneratingKey(false);
-    }
   }, []);
 
   const handleSubmitClick = useCallback((e: React.FormEvent) => {
@@ -189,14 +174,7 @@ export default function SubmitPage() {
       {keyLoading && <div className="mb-4 text-sm text-gray-500 animate-pulse">Setting up encryption...</div>}
       {!keyLoading && !orgPublicKeyPem && (
         <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
-          <p className="mb-2">Encryption key not configured by your organization.</p>
-          <button
-            onClick={handleGenerateKey}
-            disabled={generatingKey}
-            className="px-3 py-1.5 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50 transition-colors"
-          >
-            {generatingKey ? "Generating..." : "Generate Demo Key (for testing)"}
-          </button>
+          <p>Encryption key not configured by your organization. Please contact your administrator.</p>
         </div>
       )}
 

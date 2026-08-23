@@ -24,7 +24,7 @@ Spill was built using Kiro's **Specs** workflow — a structured approach that b
 
 **Value**: The spec workflow prevented scope creep and ensured every feature traced back to a requirement. When implementation decisions arose, the design document served as the source of truth.
 
-## Steering Files (11 files)
+## Steering Files (24 files)
 
 Steering files in `.kiro/steering/` provide persistent context that influences every interaction:
 
@@ -32,19 +32,32 @@ Steering files in `.kiro/steering/` provide persistent context that influences e
 |------|---------|
 | `architecture.md` | Enforces hexagonal architecture rules (no framework imports in core) |
 | `security.md` | Zero-knowledge non-negotiables, encryption standards, logging rules |
+| `security-headers.md` | Required HTTP security headers (CSP, HSTS, X-Frame-Options) |
+| `request-hardening.md` | Body size limits, content-type enforcement, rate limiting |
+| `admin-authentication.md` | Token + TOTP MFA, session management, lockout policy |
 | `deployment.md` | Canary deployment procedure, environment variables, Docker guidelines |
 | `development-standards.md` | Code quality, dependency management, file organization |
 | `testing-best-practices.md` | Test execution patterns, organization, CI considerations |
 | `git-best-practices.md` | Conventional commits, branching strategy, security |
 | `mcp-best-practices.md` | MCP server configuration and zero-cost tool recommendations |
+| `observability.md` | Structured logging, Prometheus metrics, health checks, alerting |
+| `compliance-australian.md` | Australian Privacy Act (APPs 1-13), Essential Eight, NDB scheme |
+| `data-lifecycle.md` | Retention policy, withdrawal rights, backup strategy, key rotation |
+| `employee-trust-ux.md` | Trust signals, disclaimers, confirmation modal, tone guidelines |
+| `configurable-ui.md` | Zero hardcoded content, config-driven navigation and branding |
+| `theming-and-responsive.md` | CSS variables, mobile-first, dark mode, touch targets |
+| `spill-domain-knowledge.md` | Complete domain map, encryption flow, architecture reference |
 | `python-best-practices.md` | Python 3.11+ patterns, type annotations, async conventions |
 | `react-best-practices.md` | React functional components, hooks patterns, accessibility |
 | `typescript-best-practices.md` | Strict mode, interface preferences, type safety |
 | `docker-best-practices.md` | Multi-stage builds, non-root users, layer optimization |
+| `skill-deployment.md` | Deployment skill reference |
+| `skill-development.md` | Development skill reference |
+| `skill-testing.md` | Testing skill reference |
 
 **Value**: Steering files act as a persistent "team standards" document. Every code generation respects these constraints without needing to repeat them in prompts. The security steering file is particularly critical — it ensures the AI never generates code that violates zero-knowledge principles.
 
-## Agent Hooks (10 hooks)
+## Agent Hooks (20 hooks)
 
 Hooks automate quality checks on every file save and operation:
 
@@ -58,11 +71,23 @@ Hooks automate quality checks on every file save and operation:
 - **`security-review-post-write.json`**: Verifies no plaintext logging, no localStorage, correct encryption standards after every file write
 - **`validate-no-secrets.json`**: Checks for hardcoded secrets before file writes
 - **`dependency-security-scan.json`**: Audits dependencies for vulnerabilities
+- **`security-headers-check.json`**: Validates HTTP security headers compliance
+- **`admin-auth-validation.json`**: Ensures admin endpoints require proper authentication
+
+### Compliance & Accessibility Hooks
+- **`compliance-privacy-check.json`**: Australian Privacy Act compliance verification
+- **`accessibility-check.json`**: WCAG 2.0 accessibility validation on layout/page saves
+- **`observability-logging-check.json`**: Ensures logging follows safety rules (no sensitive data)
 
 ### Workflow Hooks
 - **`commit-message-helper.json`**: Ensures conventional commit format
 - **`docker-validation.json`**: Validates Dockerfile best practices
 - **`env-file-validation.json`**: Checks environment file safety
+- **`dep-vuln-check.json`**: Prompts vulnerability scan on dependency file changes
+- **`steering-first-implementation.json`**: Reminds to check steering rules before coding
+- **`token-saving-context-first.json`**: Context-aware implementation guidance
+- **`pre-commit-readiness.json`**: Pre-commit checklist verification
+- **`submission-readiness-check.json`**: Competition submission validation
 
 **Value**: Hooks create a "shift-left" safety net. The security-review hook caught multiple potential violations during development — for example, flagging when a debug logging statement would have logged encrypted payload content. This automated enforcement is more reliable than manual code review.
 

@@ -4,9 +4,10 @@
 
 | Feature | How We Use It |
 |---------|---------------|
-| Steering Files | 11 files: architecture, security, deployment, Python, TypeScript, React, Docker, Git, Testing, Development Standards, MCP |
-| Agent Hooks | 10 hooks: lint, security scan, secret validation, post-write review, auto-test, env validation, commit helper, Docker validation, dependency scan |
+| Steering Files | 24 files: architecture, security (4), compliance, deployment, observability, Python, TypeScript, React, Docker, Git, Testing, Development Standards, MCP, admin auth, data lifecycle, employee trust UX, configurable UI, theming, domain knowledge, skills (3) |
+| Agent Hooks | 20 hooks: lint, security scan, secret validation, post-write review, auto-test, env validation, commit helper, Docker validation, dependency scan, security headers, admin auth, compliance privacy, accessibility, observability logging, steering-first, token-saving, pre-commit readiness, submission readiness, dep-vuln-check |
 | Specs | Full requirements.md → design.md → tasks.md workflow |
+| Skills | 4 custom skills: full-test-suite, docker-rebuild, security-audit, key-management |
 | Autopilot Mode | End-to-end autonomous implementation |
 | Sub-agents | context-gatherer for codebase analysis, semantic_reviewer for PR review |
 | Pre-commit | GitLeaks, Ruff, Mypy, detect-private-key |

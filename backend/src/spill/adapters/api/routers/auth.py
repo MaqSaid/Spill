@@ -41,7 +41,10 @@ async def admin_login(
     if auth_service.is_locked:
         raise HTTPException(
             status_code=423,
-            detail="Account is temporarily locked due to too many failed attempts. Try again later.",
+            detail=(
+                "Account is temporarily locked due to too many "
+                "failed attempts. Try again later."
+            ),
         )
 
     session_token = auth_service.authenticate(body.token, body.totp_code)

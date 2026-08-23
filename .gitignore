@@ -52,3 +52,8 @@ logs/
 # Test artifacts
 playwright-report/
 test-results/
+
+# Crypto key files (NEVER commit private keys)
+*.pem
+spill_private_key.*
+spill_public_key.*

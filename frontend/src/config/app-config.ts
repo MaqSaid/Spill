@@ -27,7 +27,7 @@ export interface FooterConfig {
 export const appConfig = {
   branding: {
     appName: "Spill",
-    tagline: "Zero-knowledge anonymous feedback",
+    tagline: "Not anonymous by policy. Anonymous by design.",
     logoUrl: undefined as string | undefined,
     supportEmail: "privacy@company.com",
   },

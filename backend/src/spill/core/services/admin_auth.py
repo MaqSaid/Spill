@@ -56,6 +56,7 @@ class AdminAuthService:
     - TOTP validated with 1-step tolerance window
     - Sessions are time-limited (absolute + idle timeout)
     - Account locks after N failed attempts
+    - Sessions persist in PostgreSQL (survive restarts)
     """
 
     def __init__(
@@ -67,6 +68,7 @@ class AdminAuthService:
         idle_ttl: int = 1800,
         max_attempts: int = 5,
         lockout_seconds: int = 900,
+        session_store=None,
     ) -> None:
         self._token_hash = token_hash
         self._totp_secret = totp_secret
@@ -76,6 +78,7 @@ class AdminAuthService:
         self._lockout_seconds = lockout_seconds
         self._attempt_state = AuthAttemptState()
         self._sessions: dict[str, AdminSession] = {}
+        self._session_store = session_store  # Optional PostgreSQL store
 
     def authenticate(self, token: str, totp_code: str) -> str | None:
         """

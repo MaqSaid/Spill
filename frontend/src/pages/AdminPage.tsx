@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   importPrivateKey,
   decryptFeedback,
-  generateKeyPair,
 } from "../services/encryption";
 import {
   adminListSubmissions,
@@ -23,9 +22,13 @@ const STATUS_COLORS: Record<string, string> = {
   resolved: "bg-green-100 text-green-800",
 };
 
+function getSessionToken(): string | null {
+  return sessionStorage.getItem("spill_admin_session");
+}
+
 export default function AdminPage() {
-  const [privateKeyPem, setPrivateKeyPem] = useState("");
   const [privateKey, setPrivateKey] = useState<CryptoKey | null>(null);
+  const [keyFileName, setKeyFileName] = useState<string | null>(null);
   const [submissions, setSubmissions] = useState<AdminSubmission[]>([]);
   const [decryptedTexts, setDecryptedTexts] = useState<Record<string, string>>(
     {}
@@ -33,17 +36,19 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [keyError, setKeyError] = useState("");
-  const [generatingKeys, setGeneratingKeys] = useState(false);
-  const [generatedKeys, setGeneratedKeys] = useState<{
-    publicKey: string;
-    privateKey: string;
-  } | null>(null);
+  const [keyLoading, setKeyLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadSubmissions = useCallback(async () => {
+    const token = getSessionToken();
+    if (!token) {
+      setError("No active session. Please log in again.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      const result = await adminListSubmissions();
+      const result = await adminListSubmissions(50, 0, token);
       setSubmissions(result.items);
     } catch (err) {
       setError(
@@ -58,17 +63,64 @@ export default function AdminPage() {
     loadSubmissions();
   }, [loadSubmissions]);
 
-  const handleImportKey = async () => {
+  const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
     setKeyError("");
+    setKeyLoading(true);
+
+    // Validate file size (PEM files should be small — max 16KB)
+    if (file.size > 16384) {
+      setKeyError("File too large. A valid PEM private key file should be under 16KB.");
+      setKeyLoading(false);
+      return;
+    }
+
+    // Validate file extension
+    const validExtensions = [".pem", ".key", ".txt"];
+    const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+    if (!validExtensions.includes(fileExtension)) {
+      setKeyError("Invalid file type. Please select a .pem, .key, or .txt file containing your private key.");
+      setKeyLoading(false);
+      return;
+    }
+
     try {
-      const key = await importPrivateKey(privateKeyPem);
+      const pemText = await file.text();
+
+      // Validate PEM format
+      if (!pemText.includes("-----BEGIN PRIVATE KEY-----")) {
+        setKeyError(
+          "Invalid key format. The file must contain a PKCS#8 PEM private key " +
+          "(starting with -----BEGIN PRIVATE KEY-----)."
+        );
+        setKeyLoading(false);
+        return;
+      }
+
+      if (!pemText.includes("-----END PRIVATE KEY-----")) {
+        setKeyError("Incomplete key file. Missing -----END PRIVATE KEY----- marker.");
+        setKeyLoading(false);
+        return;
+      }
+
+      // Attempt to import the key via Web Crypto API
+      const key = await importPrivateKey(pemText);
       setPrivateKey(key);
+      setKeyFileName(file.name);
     } catch {
       setKeyError(
-        "Failed to import private key. Ensure it is a valid PKCS#8 PEM RSA key."
+        "Failed to import private key. Ensure the file contains a valid RSA-4096 PKCS#8 private key."
       );
+    } finally {
+      setKeyLoading(false);
+      // Reset the file input so the same file can be re-selected
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
-  };
+  }, []);
 
   const handleDecrypt = async (submission: AdminSubmission) => {
     if (!privateKey) return;
@@ -94,8 +146,13 @@ export default function AdminPage() {
     submissionId: string,
     newStatus: string
   ) => {
+    const token = getSessionToken();
+    if (!token) {
+      setError("Session expired. Please log in again.");
+      return;
+    }
     try {
-      const updated = await adminUpdateStatus(submissionId, newStatus);
+      const updated = await adminUpdateStatus(submissionId, newStatus, "", token);
       setSubmissions((prev) =>
         prev.map((s) => (s.id === submissionId ? updated : s))
       );
@@ -103,18 +160,6 @@ export default function AdminPage() {
       setError(
         err instanceof Error ? err.message : "Failed to update status"
       );
-    }
-  };
-
-  const handleGenerateKeys = async () => {
-    setGeneratingKeys(true);
-    try {
-      const keys = await generateKeyPair();
-      setGeneratedKeys(keys);
-    } catch {
-      setError("Failed to generate key pair");
-    } finally {
-      setGeneratingKeys(false);
     }
   };
 
@@ -138,94 +183,71 @@ export default function AdminPage() {
 
         {privateKey ? (
           <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">
-            <span>Private key loaded — ready to decrypt submissions</span>
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            <span>Private key loaded from <strong>{keyFileName}</strong> — ready to decrypt</span>
             <button
               onClick={() => {
                 setPrivateKey(null);
+                setKeyFileName(null);
                 setDecryptedTexts({});
               }}
-              className="ml-auto text-xs text-gray-500 hover:text-red-600"
+              className="ml-auto px-2 py-1 text-xs text-gray-500 border border-gray-300 rounded hover:text-red-600 hover:border-red-300 transition-colors"
+              aria-label="Remove loaded private key"
             >
               Clear Key
             </button>
           </div>
         ) : (
           <div className="space-y-3">
-            <textarea
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-spill-500 focus:border-transparent"
-              placeholder={"-----BEGIN PRIVATE KEY-----\nPaste your RSA private key here...\n-----END PRIVATE KEY-----"}
-              value={privateKeyPem}
-              onChange={(e) => setPrivateKeyPem(e.target.value)}
-              aria-label="RSA private key input"
-            />
-            {keyError && (
-              <p className="text-xs text-red-600">{keyError}</p>
-            )}
-            <div className="flex gap-2">
-              <button
-                onClick={handleImportKey}
-                disabled={!privateKeyPem.trim()}
-                className="px-4 py-2 text-sm bg-spill-600 text-white rounded-lg hover:bg-spill-700 disabled:opacity-50 transition-colors"
-              >
-                Load Private Key
-              </button>
-              <button
-                onClick={handleGenerateKeys}
-                disabled={generatingKeys}
-                className="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 transition-colors"
-              >
-                {generatingKeys
-                  ? "Generating..."
-                  : "Generate Demo Key Pair"}
-              </button>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+              <p className="font-medium mb-1">Upload your private key to read submissions</p>
+              <p className="text-xs text-blue-600">
+                Select the private key file (.pem) that corresponds to your organization&apos;s
+                public key. The file is read locally in your browser and never uploaded to the server.
+              </p>
             </div>
+
+            {/* File picker */}
+            <div className="flex flex-col items-center gap-3 p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-spill-400 transition-colors">
+              <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              <p className="text-sm text-gray-600 text-center">
+                {keyLoading ? "Validating key..." : "Select your private key file"}
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pem,.key,.txt"
+                onChange={handleFileSelect}
+                className="hidden"
+                id="private-key-file"
+                aria-label="Select private key file"
+              />
+              <label
+                htmlFor="private-key-file"
+                className={`px-5 py-2.5 text-sm font-medium rounded-lg cursor-pointer transition-colors min-h-[44px] flex items-center ${
+                  keyLoading
+                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    : "bg-spill-600 text-white hover:bg-spill-700 focus-within:ring-2 focus-within:ring-spill-500 focus-within:ring-offset-2"
+                }`}
+              >
+                {keyLoading ? "Validating..." : "Choose .pem File"}
+              </label>
+              <p className="text-xs text-gray-400">Accepts .pem, .key, or .txt files (max 16KB)</p>
+            </div>
+
+            {keyError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700" role="alert" aria-live="assertive">
+                <p className="font-medium">Key import failed</p>
+                <p className="mt-1">{keyError}</p>
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {/* Generated Keys Display */}
-      {generatedKeys && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
-          <h3 className="text-sm font-semibold text-amber-800 mb-2">
-            Generated Key Pair (Demo Only)
-          </h3>
-          <p className="text-xs text-amber-700 mb-3">
-            Save these keys securely. The public key goes in the submission
-            form. The private key is for decryption here.
-          </p>
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-medium text-amber-700">
-                Public Key (share with employees):
-              </label>
-              <textarea
-                readOnly
-                rows={3}
-                className="w-full mt-1 px-2 py-1 bg-white border border-amber-200 rounded text-xs font-mono"
-                value={generatedKeys.publicKey}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-amber-700">
-                Private Key (keep secret — admin only):
-              </label>
-              <textarea
-                readOnly
-                rows={3}
-                className="w-full mt-1 px-2 py-1 bg-white border border-amber-200 rounded text-xs font-mono"
-                value={generatedKeys.privateKey}
-              />
-            </div>
-          </div>
-          <button
-            onClick={() => setGeneratedKeys(null)}
-            className="mt-3 text-xs text-amber-600 hover:text-amber-800"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
 
       {/* Error Display */}
       {error && (

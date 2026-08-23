@@ -31,7 +31,7 @@ The system implements defense-in-depth anonymity:
 
 6. **Security-First Design**: Rate limiting, timestamp bucketing, state machine enforcement, property-based testing with Hypothesis, and a documented threat model covering 10 attack vectors.
 
-7. **Kiro-Powered Development**: Built using Kiro's spec-driven workflow (requirements → design → tasks), 11 steering files for consistent standards, and 11 agent hooks for automated security and quality enforcement.
+7. **Kiro-Powered Development**: Built using Kiro's spec-driven workflow (requirements → design → tasks), 24 steering files for consistent standards, 20 agent hooks for automated security and quality enforcement, and 4 custom skills for repeatable workflows.
 
 ## How Spill Differs from Existing Solutions
 

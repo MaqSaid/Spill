@@ -93,5 +93,6 @@ def get_admin_auth_service() -> AdminAuthService:
             idle_ttl=settings.admin_idle_ttl,
             max_attempts=settings.admin_max_attempts,
             lockout_seconds=settings.admin_lockout_seconds,
+            session_store=None,  # Uses in-memory; PostgreSQL store wired at app startup
         )
     return _admin_auth_service

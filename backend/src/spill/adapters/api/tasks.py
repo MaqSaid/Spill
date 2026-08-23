@@ -37,7 +37,10 @@ async def retention_cleanup_loop() -> None:
                 if deleted_count > 0:
                     logger.info(
                         "retention_cleanup",
-                        extra={"deleted_count": deleted_count, "retention_days": settings.retention_days},
+                        extra={
+                            "deleted_count": deleted_count,
+                            "retention_days": settings.retention_days,
+                        },
                     )
         except Exception:
             logger.exception("retention_cleanup_failed")

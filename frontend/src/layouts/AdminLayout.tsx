@@ -26,6 +26,10 @@ export default function AdminLayout() {
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col">
+        <a href="#admin-main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-spill-600 focus:text-white focus:rounded">
+          Skip to content
+        </a>
+
         <nav className="bg-gray-800 text-white sticky top-0 z-40" aria-label="Admin navigation">
           <div className="max-w-6xl mx-auto px-4">
             <div className="flex items-center justify-between h-14">
@@ -59,7 +63,7 @@ export default function AdminLayout() {
           </div>
         </nav>
 
-        <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+        <main id="admin-main-content" className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
           <Outlet />
         </main>
 

@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "WCAG 2.0 Accessibility Check",
+      "trigger": "PostFileSave",
+      "description": "Ensures WCAG 2.0 accessibility is maintained when layout or page components are modified",
+      "matcher": "Layout\\\\.tsx$|Page\\\\.tsx$",
+      "action": {
+        "type": "agent",
+        "prompt": "A page or layout component was modified. Verify WCAG 2.0 compliance: 1) Skip-to-content link present in layouts. 2) All interactive elements have minimum 44x44px touch targets. 3) Proper ARIA labels on navigation, buttons, and form controls. 4) Color contrast meets AA standards (text on backgrounds). 5) Form inputs have associated labels. 6) Semantic HTML elements used (nav, main, footer, section). 7) No content conveyed only through color."
+      }
+    }
+  ]
+}
