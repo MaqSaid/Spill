@@ -57,3 +57,6 @@ test-results/
 *.pem
 spill_private_key.*
 spill_public_key.*
+# Exception: test keys for judges are committed
+!keys/test_private_key.pem
+!keys/test_public_key.pem

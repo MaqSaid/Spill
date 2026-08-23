@@ -99,10 +99,18 @@ See [docs/threat-model.md](docs/threat-model.md) for 10 documented attack vector
 ```bash
 git clone <repository-url>
 cd Spill
+cp backend/.env.example backend/.env
 docker-compose up
 ```
 
 Open `http://localhost:5173` — the app is immediately usable. No accounts, no API keys, no setup needed.
+
+**Test the full flow:**
+1. Submit feedback on the employee page (encryption is automatic)
+2. Go to `http://localhost:5173/admin`
+3. Login with test credentials (see below)
+4. Upload `keys/test_private_key.pem` (included in the repo)
+5. Click "Click to decrypt" — plaintext appears
 
 ### Prerequisites
 
@@ -145,7 +153,7 @@ A demonstration video showing the complete flow:
 - QR URI: `otpauth://totp/Spill:admin%40spill?secret=MEUYSWEPGOKQYJRUSHNP6NBODBRAVHKZ&issuer=Spill`
 
 **Private Key for Decryption:**
-- File: `spill_private_key.pem` (project root)
+- File: `keys/test_private_key.pem` (included in the repo — committed for judges)
 - Upload via file picker in Admin Dashboard after login
 
 **Quick TOTP Code (CLI):**
